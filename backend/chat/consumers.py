@@ -29,14 +29,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         username = data['username']  # Nazwa użytkownika
 
         # Pobieramy użytkownika (przykład zakłada, że 'username' jest unikalne)
-        user = await database_sync_to_async(User.objects.get)(username=username)
+        # user = await database_sync_to_async(User.objects.get)(username=username)
 
         # Pobieramy pokój, do którego ta wiadomość należy
         room = await database_sync_to_async(ChatRoom.objects.get)(name=self.room_name)
 
         # Tworzymy obiekt Message i zapisujemy go w bazie danych
-        message_instance = Message(user=user, room=room, content=message)
-        await database_sync_to_async(message_instance.save)()
+        #message_instance = Message(user=user, room=room, content=message)
+        #await database_sync_to_async(message_instance.save)()
 
         # Rozsyłamy wiadomość do wszystkich połączonych w tym pokoju
         await self.channel_layer.group_send(
