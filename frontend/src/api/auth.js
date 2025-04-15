@@ -37,3 +37,30 @@ export async function loginUser(username, password) {
     return response.json();
   }
   
+  export async function refreshAccessToken() {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("No refresh token found. User might need to log in again.");
+    }
+  
+    const response = await fetch("http://localhost:8000/user/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+  
+    if (!response.ok) {
+      // Refresh token is likely expired or invalid; force logout or prompt re-login
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      throw new Error("Failed to refresh token, please log in again.");
+    }
+  
+    const data = await response.json();
+    // data = { "access": "new_access_token" }
+  
+    // Update the accessToken in localStorage
+    localStorage.setItem("accessToken", data.access);
+  
+    return data.access;
+  }

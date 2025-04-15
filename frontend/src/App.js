@@ -1,10 +1,10 @@
-// src/App.js
-
-import React, { useState } from "react";
+// App.js
+import React, { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
+import { refreshAccessToken } from "./api/auth"; // Import your refresh function
 import "./index.css";
 
 function App() {
@@ -12,20 +12,40 @@ function App() {
   const [authView, setAuthView] = useState("login");
   const [selectedRoom, setSelectedRoom] = useState(null);
 
-  // Fake "login" that just sets the user in state
   const handleLogin = (username) => {
     setUser(username);
   };
 
   const handleLogout = () => {
-    // Clear tokens if you’re using them
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     setUser(null);
     setAuthView("login");
   };
 
-  // If no user, show login/register forms
+  // AUTO-REFRESH TOKEN every 5 minutes if user is logged in
+  useEffect(() => {
+    // Only start interval if user is logged in
+    if (!user) return;
+
+    const intervalId = setInterval(async () => {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        try {
+          // Attempt to refresh
+          await refreshAccessToken();
+          console.log("Token refreshed automatically");
+        } catch (err) {
+          console.error("Auto-refresh failed, logging out", err);
+          handleLogout();
+        }
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    // Cleanup the interval on unmount or when user changes
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   if (!user) {
     if (authView === "login") {
       return (
@@ -35,13 +55,10 @@ function App() {
         />
       );
     } else {
-      return (
-        <RegisterForm onBackToLogin={() => setAuthView("login")} />
-      );
+      return <RegisterForm onBackToLogin={() => setAuthView("login")} />;
     }
   }
 
-  // If user is logged in, show the chat UI
   return (
     <div className="app-container">
       <div className="header">
