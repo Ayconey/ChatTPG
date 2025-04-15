@@ -1,15 +1,32 @@
-import React from "react";
+// src/components/Sidebar.js
 
-function Sidebar({ contacts, selectedContact, onSelectContact }) {
+import React, { useEffect, useState } from "react";
+import { fetchRooms } from "../api/chat";
+
+function Sidebar({ selectedRoom, onSelectRoom }) {
+  const [rooms, setRooms] = useState([]);
+
+  useEffect(() => {
+    // Fetch room list once on component mount
+    fetchRooms()
+      .then((data) => {
+        setRooms(data); // data should be an array of rooms: [{id, name}, ...]
+      })
+      .catch((err) => {
+        console.error("Failed to fetch rooms:", err);
+      });
+  }, []);
+
   return (
     <div className="sidebar">
-      {contacts.map((contact) => (
+      <h3>Chat Rooms</h3>
+      {rooms.map((room) => (
         <div
-          key={contact}
-          className={`contact ${selectedContact === contact ? "active" : ""}`}
-          onClick={() => onSelectContact(contact)}
+          key={room.id}
+          className={`contact ${selectedRoom && selectedRoom.id === room.id ? "active" : ""}`}
+          onClick={() => onSelectRoom(room)}
         >
-          {contact}
+          {room.name}
         </div>
       ))}
     </div>

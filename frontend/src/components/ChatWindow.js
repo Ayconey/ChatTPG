@@ -1,39 +1,68 @@
-import React, { useState } from "react";
+// src/components/ChatWindow.js
 
-function ChatWindow({ contact }) {
-  const [messages, setMessages] = useState([
-    { text: "Hello! How are you?", sender: "received" },
-    { text: "I'm good, thanks! And you?", sender: "sent" },
-  ]);
+import React, { useEffect, useState } from "react";
+import { fetchMessages, createMessage } from "../api/chat";
+
+function ChatWindow({ user, room }) {
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
 
-  const handleSend = () => {
-    if (newMessage.trim() === "") return;
-    setMessages([...messages, { text: newMessage, sender: "sent" }]);
-    setNewMessage("");
+  useEffect(() => {
+    if (!room) return;
+    fetchMessages(room.id)
+      .then((data) => setMessages(data))
+      .catch((err) => console.error("Failed to fetch messages:", err));
+  }, [room]);
+
+  const handleSend = async () => {
+    if (!newMessage.trim()) return;
+    if (!user || !room) return;
+
+    try {
+      const createdMsg = await createMessage(room.id, newMessage, user.id);
+      setMessages((prev) => [...prev, createdMsg]);
+      setNewMessage("");
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    }
   };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handleSend();
+    }
+  };
+
+  if (!room) {
+    return <div className="chat-window">Select a room to start chatting.</div>;
+  }
 
   return (
     <div className="chat-window">
       <div className="chat-header">
-        <h3>Chat with {contact}</h3>
+        <h3>Chat: {room.name}</h3>
       </div>
+
       <div className="chat-messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.sender}`}>
-            <p>{msg.text}</p>
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`message ${
+              msg.user === user.id ? "sent" : "received"
+            }`}
+          >
+            <p>{msg.content}</p>
           </div>
         ))}
       </div>
+
       <div className="chat-input">
         <input
           type="text"
           placeholder="Type your message..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") handleSend();
-          }}
+          onKeyPress={handleKeyPress}
         />
         <button onClick={handleSend}>Send</button>
       </div>

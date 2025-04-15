@@ -1,40 +1,70 @@
-import React, { useState } from "react";
+// src/components/LoginForm.js
 
-function LoginForm({ onLogin }) {
+import React, { useState } from "react";
+import { loginUser } from "../api/auth";
+
+function LoginForm({ onLogin, onSwitchToRegister }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username.trim() === "" || password.trim() === "") {
-      alert("Please enter both a username and password.");
+
+    if (!username.trim() || !password.trim()) {
+      setErrorMsg("Please enter both username and password.");
       return;
     }
-    // For this demo, any username/password combination is accepted.
-    onLogin(username);
+
+    try {
+      // Attempt real login
+      await loginUser(username, password);
+      // If successful, let parent know we are logged in
+      onLogin(username);
+    } catch (err) {
+      setErrorMsg("Invalid username or password.");
+      console.error(err);
+    }
   };
 
   return (
     <div className="login-container">
       <form onSubmit={handleSubmit}>
         <h2>Login</h2>
+        {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
+
         <div>
           <label>Username:</label>
           <input
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              setErrorMsg("");
+              setUsername(e.target.value);
+            }}
           />
         </div>
+
         <div>
           <label>Password:</label>
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setErrorMsg("");
+              setPassword(e.target.value);
+            }}
           />
         </div>
+
         <button type="submit">Login</button>
+
+        <p>
+          Don’t have an account yet?{" "}
+          <button type="button" onClick={onSwitchToRegister}>
+            Register
+          </button>
+        </p>
       </form>
     </div>
   );
