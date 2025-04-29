@@ -14,31 +14,34 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ['id', 'username', 'content', 'timestamp', 'room_id']
-        read_only_fields = ['id', 'timestamp']
+        read_only_fields = ['id', 'username', 'timestamp', 'room_id']
+
+
+class MessageCreateSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(write_only=True)
+    room_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Message
+        fields = ['content', 'username', 'room_id']
 
     def validate_content(self, value):
-        # Możesz dodać walidację dla content (np. minimalna długość, itp.)
-        if len(value.strip()) == 0:
+        if not value.strip():
             raise serializers.ValidationError("Content cannot be empty.")
         return value
 
     def create(self, validated_data):
-        # Pobierz dane z validated_data
-        username = validated_data.get('username')
-        content = validated_data.get('content')
-        room_id = validated_data.get('room_id')
+        username = validated_data.pop('username')
+        room_id = validated_data.pop('room_id')
 
-        # Pobierz obiekt użytkownika na podstawie username
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
-            raise serializers.ValidationError(f"User with username {username} does not exist.")
-        
+            raise serializers.ValidationError(f"User '{username}' not found.")
+
         try:
             room = ChatRoom.objects.get(id=room_id)
         except ChatRoom.DoesNotExist:
-            raise serializers.ValidationError(f"Room with id {room_id} does not exist.")
+            raise serializers.ValidationError(f"Room with id {room_id} not found.")
 
-        # Tworzenie wiadomości
-        message = Message.objects.create(user=user, room=room, content=content)
-        return message
+        return Message.objects.create(user=user, room=room, **validated_data)
