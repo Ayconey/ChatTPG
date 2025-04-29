@@ -4,6 +4,8 @@ from .models import Message, ChatRoom
 from django.contrib.auth.models import User
 from channels.db import database_sync_to_async
 
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -24,35 +26,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        data = json.loads(text_data)  # Odbieramy dane
-        message = data['message']  # Wiadomość
-        username = data['username']  # Nazwa użytkownika
+        data = json.loads(text_data)
+        message = data['message']
 
-        # Pobieramy użytkownika (przykład zakłada, że 'username' jest unikalne)
-        # user = await database_sync_to_async(User.objects.get)(username=username)
-
-        # Pobieramy pokój, do którego ta wiadomość należy
-        room = await database_sync_to_async(ChatRoom.objects.get)(name=self.room_name)
-
-        # Tworzymy obiekt Message i zapisujemy go w bazie danych
-        #message_instance = Message(user=user, room=room, content=message)
-        #await database_sync_to_async(message_instance.save)()
-
-        # Rozsyłamy wiadomość do wszystkich połączonych w tym pokoju
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'message': message,
-                'username': username
+                'message': message
             }
         )
 
     async def chat_message(self, event):
-        message = event['message']
-        username = event['username']
-
         await self.send(text_data=json.dumps({
-            'message': message,
-            'username': username
+            'message': event['message']
         }))
