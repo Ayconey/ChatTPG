@@ -1,42 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Test</title>
+    <meta charset="utf-8">
+    <title>Chat testowy</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        #chat-log { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        #chat-message-input { width: 80%; padding: 10px; }
+        #chat-message-submit { padding: 10px 20px; }
+    </style>
 </head>
 <body>
-    <h2>WebSocket Test</h2>
-    <div id="messages"></div>
-    <input type="text" id="messageInput" placeholder="Type a message" />
-    <button onclick="sendMessage()">Send</button>
+    <h2>Prosty czat</h2>
+
+    <div id="chat-log"></div>
+
+    <input id="chat-message-input" type="text" placeholder="Napisz wiadomość..." autocomplete="off">
+    <button id="chat-message-submit">Wyślij</button>
 
     <script>
-        const roomName = "test";  // Nazwa pokoju, do którego chcesz się połączyć
-        const socket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${roomName}/`);
+        const roomName = "pokoj1";  // dopasuj do routingu w Django
+        const chatSocket = new WebSocket(
+            'ws://' + 'localhost:8000' + '/ws/chat/' + roomName + '/'
+        );
 
-        // Odbieranie wiadomości
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            const messageElement = document.createElement("div");
-            messageElement.textContent = `${data.username}: ${data.message}`;
-            document.getElementById("messages").appendChild(messageElement);
+        const chatLog = document.querySelector('#chat-log');
+        const chatInput = document.querySelector('#chat-message-input');
+        const chatButton = document.querySelector('#chat-message-submit');
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const message = data.message;
+            const messageEl = document.createElement('div');
+            messageEl.textContent = message;
+            chatLog.appendChild(messageEl);
+            chatLog.scrollTop = chatLog.scrollHeight;
         };
 
-        // Funkcja wysyłania wiadomości
-        function sendMessage() {
-            const messageInput = document.getElementById("messageInput");
-            const message = messageInput.value;
+        chatSocket.onclose = function(e) {
+            alert("WebSocket zamknięty.");
+        };
 
-            // Wysyłamy wiadomość do serwera
-            socket.send(JSON.stringify({
-                username: "user1",
-                message: message
-            }));
+        chatButton.onclick = function() {
+            const message = chatInput.value;
+            if (message.trim() !== '') {
+                chatSocket.send(JSON.stringify({ 'message': message }));
+                chatInput.value = '';
+            }
+        };
 
-            // Czyścimy pole wejściowe
-            messageInput.value = '';
-        }
+        chatInput.addEventListener("keyup", function(e) {
+            if (e.key === "Enter") {
+                chatButton.click();
+            }
+        });
     </script>
 </body>
 </html>
