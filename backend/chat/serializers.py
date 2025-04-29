@@ -8,10 +8,13 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    username = serializers.SlugRelatedField(
+        queryset=User.objects.all(),
+        slug_field='username'
+    )
     room_id = serializers.PrimaryKeyRelatedField(queryset=ChatRoom.objects.all())
 
     class Meta:
         model = Message
-        fields = ['user_id', 'room_id', 'content']
+        fields = ['username', 'room_id', 'content']
         read_only_fields = ['timestamp']
