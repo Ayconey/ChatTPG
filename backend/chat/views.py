@@ -1,6 +1,6 @@
 from rest_framework import generics
 from .models import ChatRoom, Message
-from .serializers import ChatRoomSerializer, MessageSerializer, MessageCreateSerializer
+from .serializers import ChatRoomSerializer, MessageSerializer
 from django.contrib.auth.models import User
 from rest_framework.exceptions import NotFound
 
@@ -10,13 +10,9 @@ class ChatRoomListView(generics.ListCreateAPIView):
 
 
 class MessageListView(generics.ListCreateAPIView):
+
     queryset = Message.objects.all()
-
-    def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return MessageCreateSerializer
-        return MessageSerializer
-
+    serializer_class = MessageSerializer
     def get_queryset(self):
         room_id = self.kwargs['room_id']
         return Message.objects.filter(room_id=room_id)
