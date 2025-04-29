@@ -94,18 +94,23 @@ html,
   display: flex;
   flex-direction: column;
   background-color: #181818;
-}
-
-.chat-header {
-  padding: 15px;
-  background-color: #1f1f1f;
-  border-bottom: 1px solid #333;
+  height: 100%; /* ADD this */
+  min-height: 400px; /* Optional: prevent it collapsing on small screens */
+  max-height: 750px; /* Optional: keep it reasonable */
+  overflow: hidden; /* Prevents expanding */
 }
 
 .chat-messages {
   flex: 1;
   padding: 15px;
   overflow-y: auto;
+  min-height: 0; /* IMPORTANT: allow flexbox to shrink properly */
+}
+
+.chat-header {
+  padding: 15px;
+  background-color: #1f1f1f;
+  border-bottom: 1px solid #333;
 }
 
 .chat-input {

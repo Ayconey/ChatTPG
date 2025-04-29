@@ -1,14 +1,14 @@
-// src/api/chat.js
-
-// Replace with your actual backend URL
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://localhost:8000"; // adjust for prod
 
 function getAuthHeaders() {
   const token = localStorage.getItem("accessToken");
-  return {
+  const headers = {
     "Content-Type": "application/json",
-    Authorization: token ? `Bearer ${token}` : undefined,
   };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 /**
@@ -46,31 +46,26 @@ export async function fetchMessages(roomId) {
 }
 
 /**
- * Create (send) a new message in the specified room
+ * Create (send) a new message to a specific room
  * POST /chat/messages/<room_id>/
- * body: { room: roomId, text: "...", sender: userID? }
+ * body: { username, content }
  */
-export async function createMessage(roomId, content, userId) {
-    // The backend expects { user, content, room }
-    const bodyData = {
-      user: userId,     // integer user ID
-      content: content, // actual text body
-      room: roomId
-    };
+export async function createMessage(roomId, content, username) {
+  const bodyData = {
+    username: username,
+    content: content,
+    room_id: roomId,
+  };
 
-    console.log("userid:");
-    console.log(userId);
-  
-    const res = await fetch(`${BASE_URL}/chat/messages/${roomId}/`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(bodyData),
-    });
-  
-    if (!res.ok) {
-      throw new Error("Could not create message");
-    }
-  
-    return res.json();
+  const res = await fetch(`${BASE_URL}/chat/messages/${roomId}/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(bodyData),
+  });
+
+  if (!res.ok) {
+    throw new Error("Could not create message");
+  }
+
+  return res.json();
 }
-  
