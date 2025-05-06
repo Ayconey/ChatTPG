@@ -1,194 +1,201 @@
-/* Global styles and dark theme setup */
-body,
-html,
-#root {
+/*--------------------------------------------------
+  Minimal Dark Theme
+--------------------------------------------------*/
+:root {
+  --bg: #111;
+  --panel: #1f1f1f;
+  --text: #eee;
+  --accent: #0a84ff;
+  --accent-dark: #0667c8;
+  --border: #333;
+}
+
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+body, #root {
   height: 100%;
-  font-family: Arial, sans-serif;
-  background-color: #121212;
-  color: #e0e0e0;
+  font-family: sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
-/* Login Form Styling */
-.login-container {
+button {
+  cursor: pointer;
+  border: none;
+  background: var(--accent);
+  color: var(--text);
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  transition: background 0.2s;
+}
+button:hover {
+  background: var(--accent-dark);
+}
+
+.auth-container, .app {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  height: 100vh;
-  background-color: #121212;
 }
 
-.login-container form {
-  background-color: #1f1f1f;
-  padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  color: #e0e0e0;
+.auth-container {
+  justify-content: center;
+  height: 100%;
 }
-
-.login-container form div {
-  margin-bottom: 15px;
+.auth-container form {
+  background: var(--panel);
+  padding: 2rem;
+  border-radius: 0.5rem;
+  width: 300px;
 }
-
-.login-container form label {
+.auth-container label {
   display: block;
-  margin-bottom: 5px;
+  margin: 0.5rem 0 0.25rem;
 }
-
-.login-container form input {
+.auth-container input {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background-color: #121212;
-  color: #e0e0e0;
+  padding: 0.5rem;
+  background: #111;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 0.25rem;
 }
+.error { color: #f66; margin-bottom: 0.5rem; }
+.info { color: #6f6; margin-bottom: 0.5rem; }
 
-/* Header styling in the chat app */
-.header {
+.app-header {
+  width: 100%;
+  padding: 1rem;
+  background: var(--panel);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  background-color: #1f1f1f;
-  border-bottom: 1px solid #333;
 }
 
-/* Container for chat app after login */
-.app-container {
+.main {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
+  height: calc(100% - 64px);
 }
 
-.main-content {
-  display: flex;
-  flex: 1;
-}
-
-/* Sidebar styling */
 .sidebar {
-  width: 25%;
-  max-width: 300px;
-  background-color: #1f1f1f;
-  border-right: 1px solid #333;
+  width: 250px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
 }
-
-.sidebar .contact {
-  padding: 15px;
-  border-bottom: 1px solid #333;
+.sidebar h3 {
+  padding: 1rem;
+}
+.room {
+  padding: 0.75rem 1rem;
   cursor: pointer;
-  transition: background-color 0.3s;
+}
+.room.active, .room:hover {
+  background: var(--border);
 }
 
-.sidebar .contact:hover,
-.sidebar .contact.active {
-  background-color: #333;
-}
-
-/* Chat window styling */
 .chat-window {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #181818;
-  height: 100%; /* ADD this */
-  min-height: 400px; /* Optional: prevent it collapsing on small screens */
-  max-height: 750px; /* Optional: keep it reasonable */
-  overflow: hidden; /* Prevents expanding */
+  background: var(--bg);
 }
-
+.chat-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
 .chat-messages {
   flex: 1;
-  padding: 15px;
+  padding: 1rem;
   overflow-y: auto;
-  min-height: 0; /* IMPORTANT: allow flexbox to shrink properly */
 }
-
-.chat-header {
-  padding: 15px;
-  background-color: #1f1f1f;
-  border-bottom: 1px solid #333;
-}
-
 .chat-input {
+  padding: 1rem;
   display: flex;
-  padding: 15px;
-  border-top: 1px solid #333;
-  background-color: #1f1f1f;
+  border-top: 1px solid var(--border);
 }
-
 .chat-input input {
   flex: 1;
-  padding: 10px;
-  border: 1px solid #333;
-  background-color: #121212;
-  color: #e0e0e0;
-  border-radius: 4px;
+  padding: 0.5rem;
+  background: #111;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 0.25rem;
 }
 
-.chat-input button {
-  margin-left: 10px;
-  padding: 10px 20px;
-  border: none;
-  background-color: #007bff;
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.chat-input button:hover {
-  background-color: #0056b3;
-}
-
-/* Message styling */
+/* bubbles */
 .message {
-  margin-bottom: 15px;
+  margin-bottom: 0.75rem;
   display: flex;
+  flex-direction: column;
 }
-
-.message p {
+.message .username {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-bottom: 0.25rem;
+}
+.bubble {
   max-width: 70%;
-  padding: 10px;
-  border-radius: 15px;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  word-wrap: break-word;
+}
+.sent {
+  align-items: flex-end;
+}
+.sent .bubble {
+  background: var(--accent);
+  color: var(--text);
+  border-bottom-right-radius: 0;
+}
+.recv {
+  align-items: flex-start;
+}
+.recv .bubble {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 0;
 }
 
-.message.sent {
-  justify-content: flex-end;
+/* Sidebar sections */
+.sidebar-section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.message.sent p {
-  background-color: #0a84ff;
-  color: #fff;
+.sidebar-section h4 {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--accent);
 }
 
-.message.received {
-  justify-content: flex-start;
+/* “Add Friend” form */
+.add-friend-form {
+  display: flex;
+  gap: 0.5rem;
 }
 
-.message.received p {
-  background-color: #333;
-  border: 1px solid #444;
+.add-friend-form input {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 0.25rem;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 35%;
-  }
+.add-friend-form button {
+  padding: 0.5rem 1rem;
 }
 
-@media (max-width: 480px) {
-  .main-content {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    max-height: 150px;
-    border-right: none;
-    border-bottom: 1px solid #333;
-  }
+/* Error beneath form */
+.error {
+  margin-top: 0.5rem;
+  color: #f66;
+  font-size: 0.8rem;
 }

@@ -1,60 +1,57 @@
-import React, { useEffect, useState, useRef } from "react";
+// src/components/ChatWindow.js
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
+import { useChatSocket } from "../hooks/useChatSocket";
 
-function ChatWindow({ user, room }) {
+export default function ChatWindow({ user, room }) {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const socketRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const [draft, setDraft]       = useState("");
+  const endRef                  = useRef();
+
+  const handleIncoming = useCallback(
+    ({ message, username }) => {
+      setMessages((prev) => [
+        ...prev,
+        { content: message, username },
+      ]);
+    },
+    []
+  );
+
+  const { send } = useChatSocket(room && room.name, handleIncoming);
 
   useEffect(() => {
     if (!room) return;
-
     fetchMessages(room.id)
-      .then((data) => setMessages(data))
-      .catch((err) => console.error("Failed to fetch messages:", err));
-
-    const backendHost = "localhost:8000"; // Django server
-    const ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const socketUrl = `${ws_scheme}://${backendHost}/ws/chat/${room.name}/`;
-
-    socketRef.current = new WebSocket(socketUrl);
-
-    socketRef.current.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.message) {
-        setMessages((prev) => [...prev, { content: data.message, username: data.username }]);
-      }
-    };
-
-    socketRef.current.onclose = () => {
-      console.log("WebSocket closed");
-    };
-
-    return () => {
-      socketRef.current.close();
-    };
+      .then((data) =>
+        setMessages(
+          data.map((m) => ({ content: m.content, username: m.username }))
+        )
+      )
+      .catch(console.error);
   }, [room]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
-    if (!user || !room) return;
-
+    if (!draft.trim() || !room) return;
+    const text = draft;
+    setDraft("");
     try {
-      await createMessage(room.id, newMessage, user);
-      socketRef.current.send(JSON.stringify({ message: newMessage }));
-      setNewMessage("");
+      // first persist via REST
+      await createMessage(room.id, text, user);
+      // then broadcast via WS, including your username
+      send(text, user);
     } catch (err) {
-      console.error("Failed to send message:", err);
+      console.error("Failed to send:", err);
     }
   };
 
-  const handleKeyPress = (e) => {
+  const onKeyDown = (e) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleSend();
     }
   };
@@ -70,32 +67,28 @@ function ChatWindow({ user, room }) {
       </div>
 
       <div className="chat-messages">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`message ${
-              msg.username === user.username ? "sent" : "received"
-            }`}
-          >
-            <small className="message-username">{msg.username}</small>
-            <p>{msg.content}</p>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+        {messages.map((m, i) => {
+          const mine = m.username === user;
+          return (
+            <div key={i} className={`message ${mine ? "sent" : "recv"}`}>
+              <small className="message-username">{m.username}</small>
+              <div className="bubble">{m.content}</div>
+            </div>
+          );
+        })}
+        <div ref={endRef} />
       </div>
 
       <div className="chat-input">
         <input
           type="text"
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
+          placeholder="Type your message…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
         />
         <button onClick={handleSend}>Send</button>
       </div>
     </div>
   );
 }
-
-export default ChatWindow;

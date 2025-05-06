@@ -1,60 +1,39 @@
 // src/components/RegisterForm.js
-
 import React, { useState } from "react";
 import { registerUser } from "../api/auth";
 
-function RegisterForm({ onBackToLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export default function RegisterForm({ backToLogin }) {
+  const [u, setU] = useState("");
+  const [p, setP] = useState("");
   const [msg, setMsg] = useState("");
 
-  const handleSubmit = async (e) => {
+  async function submit(e) {
     e.preventDefault();
-
-    if (username.trim() === "" || password.trim() === "") {
-      setMsg("Username and password are required.");
-      return;
-    }
-
     try {
-      // Call our register API
-      const data = await registerUser(username, password);
-      console.log("Registration response:", data);
-      setMsg("Registration successful! You can now log in.");
-    } catch (err) {
-      console.error(err);
-      setMsg("Registration failed. Try a different username.");
+      await registerUser(u.trim(), p.trim());
+      setMsg("Success! Please log in.");
+    } catch {
+      setMsg("Registration failed.");
     }
-  };
+  }
 
   return (
-    <div className="login-container">
-      <form onSubmit={handleSubmit}>
+    <div className="auth-container">
+      <form onSubmit={submit}>
         <h2>Register</h2>
-        <div>
-          <label>Username:</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-
+        {msg && <div className="info">{msg}</div>}
+        <label>Username</label>
+        <input value={u} onChange={(e) => setU(e.target.value)} />
+        <label>Password</label>
+        <input
+          type="password"
+          value={p}
+          onChange={(e) => setP(e.target.value)}
+        />
         <button type="submit">Register</button>
-        <p>{msg}</p>
-
         <p>
-          Already have an account?{" "}
-          <button type="button" onClick={onBackToLogin}>
+          Have account?{" "}
+          <button type="button" onClick={backToLogin}>
             Login
           </button>
         </p>
@@ -62,5 +41,3 @@ function RegisterForm({ onBackToLogin }) {
     </div>
   );
 }
-
-export default RegisterForm;

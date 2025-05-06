@@ -1,67 +1,39 @@
 // src/components/LoginForm.js
-
 import React, { useState } from "react";
 import { loginUser } from "../api/auth";
 
-function LoginForm({ onLogin, onSwitchToRegister }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+export default function LoginForm({ onLogin, switchToRegister }) {
+  const [u, setU] = useState("");
+  const [p, setP] = useState("");
+  const [err, setErr] = useState("");
 
-  const handleSubmit = async (e) => {
+  async function submit(e) {
     e.preventDefault();
-
-    if (!username.trim() || !password.trim()) {
-      setErrorMsg("Please enter both username and password.");
-      return;
-    }
-
     try {
-      // Attempt real login
-      await loginUser(username, password);
-      // If successful, let parent know we are logged in
-      onLogin(username);
-    } catch (err) {
-      setErrorMsg("Invalid username or password.");
-      console.error(err);
+      await loginUser(u.trim(), p.trim());
+      onLogin(u.trim());
+    } catch {
+      setErr("Invalid credentials");
     }
-  };
+  }
 
   return (
-    <div className="login-container">
-      <form onSubmit={handleSubmit}>
+    <div className="auth-container">
+      <form onSubmit={submit}>
         <h2>Login</h2>
-        {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
-
-        <div>
-          <label>Username:</label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => {
-              setErrorMsg("");
-              setUsername(e.target.value);
-            }}
-          />
-        </div>
-
-        <div>
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setErrorMsg("");
-              setPassword(e.target.value);
-            }}
-          />
-        </div>
-
+        {err && <div className="error">{err}</div>}
+        <label>Username</label>
+        <input value={u} onChange={(e) => setU(e.target.value)} />
+        <label>Password</label>
+        <input
+          type="password"
+          value={p}
+          onChange={(e) => setP(e.target.value)}
+        />
         <button type="submit">Login</button>
-
         <p>
-          Don’t have an account yet?{" "}
-          <button type="button" onClick={onSwitchToRegister}>
+          No account?{" "}
+          <button type="button" onClick={switchToRegister}>
             Register
           </button>
         </p>
@@ -69,5 +41,3 @@ function LoginForm({ onLogin, onSwitchToRegister }) {
     </div>
   );
 }
-
-export default LoginForm;
