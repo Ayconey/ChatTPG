@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'channels',
     'chat',
-    'users',
+    'users.apps.UsersConfig'
 ]
 
 MIDDLEWARE = [
