@@ -1,36 +1,89 @@
 // src/components/Sidebar.js
-
 import React, { useEffect, useState } from "react";
 import { fetchRooms } from "../api/chat";
+import { fetchMutualFriends, addFriend } from "../api/friends";
 
-function Sidebar({ selectedRoom, onSelectRoom }) {
+export default function Sidebar({ selected, onSelect }) {
   const [rooms, setRooms] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [newFriend, setNewFriend] = useState("");
+  const [err, setErr] = useState("");
 
+  // load chat rooms
   useEffect(() => {
-    // Fetch room list once on component mount
-    fetchRooms()
-      .then((data) => {
-        setRooms(data); // data should be an array of rooms: [{id, name}, ...]
-      })
-      .catch((err) => {
-        console.error("Failed to fetch rooms:", err);
-      });
+    fetchRooms().then(setRooms).catch(console.error);
   }, []);
 
+  const loadFriends = () =>
+    fetchMutualFriends()
+      .then((data) => setFriends(data.mutual_friends))
+      .catch(console.error);
+  
+  // wrap it in a no-return callback
+  useEffect(() => {
+    loadFriends();
+  }, []);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!newFriend.trim()) return;
+    try {
+      await addFriend(newFriend.trim());
+      setNewFriend("");
+      setErr("");
+      // reload both lists
+      fetchRooms().then(setRooms).catch(console.error);
+      loadFriends();
+    } catch (e) {
+      setErr("Could not add friend");
+      console.error(e);
+    }
+  };
+
   return (
-    <div className="sidebar">
-      <h3>Chat Rooms</h3>
-      {rooms.map((room) => (
-        <div
-          key={room.id}
-          className={`contact ${selectedRoom && selectedRoom.id === room.id ? "active" : ""}`}
-          onClick={() => onSelectRoom(room)}
-        >
-          {room.name}
-        </div>
-      ))}
-    </div>
+    <aside className="sidebar">
+      <section className="sidebar-section">
+        <h4>New Friend</h4>
+        <form onSubmit={handleAdd} className="add-friend-form">
+          <input
+            placeholder="username…"
+            value={newFriend}
+            onChange={(e) => setNewFriend(e.target.value)}
+          />
+          <button type="submit">Add</button>
+        </form>
+        {err && <div className="error">{err}</div>}
+      </section>
+
+      <section className="sidebar-section">
+        <h4>Friends (Direct Chats)</h4>
+        {friends.map((f) => (
+          <div
+            key={f.room_id}
+            className={`room ${
+              selected?.id === f.room_id ? "active" : ""
+            }`}
+            onClick={() =>
+              onSelect({ id: f.room_id, name: f.username })
+            }
+          >
+            {f.username}
+          </div>
+        ))}
+      </section>
+
+      <section className="sidebar-section">
+        <h4>Other Rooms</h4>
+        {rooms.map((r) => (
+          <div
+            key={r.id}
+            className={`room ${selected?.id === r.id ? "active" : ""}`}
+            onClick={() => onSelect(r)}
+          >
+            {r.name}
+          </div>
+        ))}
+      </section>
+    </aside>
   );
 }
-
-export default Sidebar;

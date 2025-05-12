@@ -1,4 +1,5 @@
 # users/views.py
+
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.response import Response
@@ -93,7 +94,6 @@ class MutualFriendsView(APIView):
                 })
 
         return Response({'mutual_friends': mutual_friends})
-
 
 class FriendRequestListView(generics.ListAPIView):
     serializer_class = FriendRequestSerializer

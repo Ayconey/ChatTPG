@@ -1,0 +1,53 @@
+import { useEffect, useRef } from "react";
+
+export function useChatSocket(room, onMessage) {
+  const socketRef = useRef(null);
+  const handlerRef = useRef(onMessage);
+
+  // keep handlerRef up to date, without re-running the main effect
+  useEffect(() => {
+    handlerRef.current = onMessage;
+  }, [onMessage]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    const backendHost = "localhost:8000";
+    const wsScheme    = window.location.protocol === "https:" ? "wss" : "ws";
+    const socketUrl   = `${wsScheme}://${backendHost}/ws/chat/${room.name}/`;
+
+    const ws = new WebSocket(socketUrl);
+    socketRef.current = ws;
+
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.message) {
+            console.log("🔍 WS parsed object:", data);
+          handlerRef.current(data);
+        }
+      } catch (err) {
+        console.error("WS parse error:", err);
+      }
+    };
+    ws.onopen = () => console.log("WebSocket opened:", socketUrl);
+    ws.onerror = (err) => console.error("WebSocket error:", err);
+    ws.onclose = (e) => console.log("WebSocket closed:", e.code, e.reason);
+
+    // cleanup only when room actually changes or component unmounts
+    return () => {
+      console.log("Cleaning up WS for room:", room.name);
+      ws.close();
+      socketRef.current = null;
+    };
+  }, [room]);  // <-- only room here!
+
+  const send = (message, username) => {
+    const ws = socketRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ message, username }));
+    }
+  };
+
+  return { send };
+}
