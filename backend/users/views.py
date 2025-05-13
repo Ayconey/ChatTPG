@@ -7,14 +7,24 @@ from rest_framework.views import APIView
 from .models import UserProfile,FriendRequest
 from .serializers import UserSerializer,FriendRequestSerializer
 from rest_framework.permissions import AllowAny
+from rest_framework import serializers
 from rest_framework_simplejwt.views import TokenObtainPairView
 from chat.models import ChatRoom
 from rest_framework import generics, permissions
+from rest_framework.permissions import IsAuthenticated
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("❌ Registration Error:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
@@ -101,8 +111,44 @@ class FriendRequestListView(generics.ListAPIView):
     def get_queryset(self):
         return FriendRequest.objects.filter(to_user=self.request.user, accepted=False)
 
+
 class SendFriendRequestView(generics.CreateAPIView):
     serializer_class = FriendRequestSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(from_user=self.request.user)
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+
+class AcceptFriendRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            f_request = FriendRequest.objects.get(id=pk, to_user=request.user)
+        except FriendRequest.DoesNotExist:
+            return Response({'detail': 'Friend request not found.'}, status=404)
+
+        if f_request.accepted:
+            return Response({'detail': 'Already accepted'}, status=400)
+
+        f_request.accepted = True
+        f_request.save()
+
+        from_profile = UserProfile.objects.get(user=f_request.from_user)
+        to_profile = UserProfile.objects.get(user=f_request.to_user)
+
+        # Add both directions
+        from_profile.friends.add(to_profile)
+        to_profile.friends.add(from_profile)
+
+        # Create chat room if not already there
+        exists = ChatRoom.objects.filter(
+            user1=f_request.from_user, user2=f_request.to_user
+        ).exists() or ChatRoom.objects.filter(
+            user1=f_request.to_user, user2=f_request.from_user
+        ).exists()
+
+        if not exists:
+            ChatRoom.objects.create(user1=f_request.from_user, user2=f_request.to_user)
+
+        return Response({'detail': 'Friend request accepted.'})

@@ -10,10 +10,10 @@ async function callApi(path, options = {}) {
   return res.json();
 }
 
-export function registerUser(username, password) {
+export function registerUser(userData) {
   return callApi("/register/", {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(userData),
   });
 }
 
