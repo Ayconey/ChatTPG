@@ -12,6 +12,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from chat.models import ChatRoom
 from rest_framework import generics, permissions
 from rest_framework.permissions import IsAuthenticated
+from .auth import CookieTokenAuthentication
+from django.utils.timezone import now
+from datetime import timedelta
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -26,8 +29,61 @@ class RegisterView(generics.CreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+class CookieTokenObtainPairView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        data = response.data
+
+        # Set cookies
+        access_token = data.get("access")
+        refresh_token = data.get("refresh")
+
+        access_exp = now() + timedelta(minutes=5)  # Adjust to match settings
+        refresh_exp = now() + timedelta(days=7)
+
+        response.set_cookie(
+            key="accessToken",
+            value=access_token,
+            expires=access_exp,
+            httponly=True,
+            samesite="Lax",
+            secure=False,  # set True in production (requires HTTPS)
+        )
+        response.set_cookie(
+            key="refreshToken",
+            value=refresh_token,
+            expires=refresh_exp,
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+        )
+
+        # Optional: remove tokens from response body
+        response.data = {"message": "Login successful"}
+        return response
+    
+class MeView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
+
+class LogoutView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        response = Response({"message": "Logged out"}, status=200)
+        response.delete_cookie("accessToken")
+        response.delete_cookie("refreshToken")
+        return response
+
 
 class EncryptedPrivateKeyView(APIView):
 

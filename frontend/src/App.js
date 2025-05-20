@@ -4,7 +4,11 @@ import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
-import { refreshAccessToken } from "./api/auth";
+import {
+  refreshAccessToken,
+  getCurrentUser,
+  logoutUser,
+} from "./api/auth";
 import "./index.css";
 
 export default function App() {
@@ -12,11 +16,21 @@ export default function App() {
   const [view, setView] = useState("login");
   const [room, setRoom] = useState(null);
 
+  // Try to restore session on load
+  useEffect(() => {
+    getCurrentUser()
+      .then((data) => setUser(data.username))
+      .catch(() => {
+        setUser(null);
+        setView("login");
+      });
+  }, []);
+
+  // Refresh token every 5 minutes
   useEffect(() => {
     if (!user) return;
     const iv = setInterval(() => {
       refreshAccessToken().catch(() => {
-        localStorage.clear();
         setUser(null);
         setView("login");
       });
@@ -27,7 +41,11 @@ export default function App() {
   if (!user) {
     return view === "login" ? (
       <LoginForm
-        onLogin={(u) => setUser(u)}
+        onLogin={() =>
+          getCurrentUser()
+            .then((data) => setUser(data.username))
+            .catch(() => {})
+        }
         switchToRegister={() => setView("register")}
       />
     ) : (
@@ -41,9 +59,10 @@ export default function App() {
         <span>Welcome, {user}!</span>
         <button
           onClick={() => {
-            localStorage.clear();
-            setUser(null);
-            setView("login");
+            logoutUser().finally(() => {
+              setUser(null);
+              setView("login");
+            });
           }}
         >
           Logout
