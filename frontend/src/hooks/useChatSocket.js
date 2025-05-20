@@ -14,7 +14,7 @@ export function useChatSocket(room, onMessage) {
 
     const backendHost = "localhost:8000";
     const wsScheme    = window.location.protocol === "https:" ? "wss" : "ws";
-    const socketUrl   = `${wsScheme}://${backendHost}/ws/chat/${room.name}/`;
+    const socketUrl   = `${wsScheme}://${backendHost}/ws/chat/${room}/`;
 
     const ws = new WebSocket(socketUrl);
     socketRef.current = ws;

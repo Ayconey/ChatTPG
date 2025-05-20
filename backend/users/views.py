@@ -1,20 +1,18 @@
-# users/views.py
-
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import UserProfile,FriendRequest
-from .serializers import UserSerializer,FriendRequestSerializer
-from rest_framework.permissions import AllowAny
-from rest_framework import serializers
+from rest_framework import generics
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
-from chat.models import ChatRoom
-from rest_framework import generics, permissions
-from rest_framework.permissions import IsAuthenticated
-from .auth import CookieTokenAuthentication
 from django.utils.timezone import now
 from datetime import timedelta
+
+from .models import UserProfile, FriendRequest
+from .serializers import UserSerializer, FriendRequestSerializer
+from .auth import CookieTokenAuthentication
+from chat.models import ChatRoom
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -29,6 +27,7 @@ class RegisterView(generics.CreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+
 class CookieTokenObtainPairView(TokenObtainPairView):
     permission_classes = [AllowAny]
 
@@ -36,11 +35,10 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         response = super().post(request, *args, **kwargs)
         data = response.data
 
-        # Set cookies
         access_token = data.get("access")
         refresh_token = data.get("refresh")
 
-        access_exp = now() + timedelta(minutes=5)  # Adjust to match settings
+        access_exp = now() + timedelta(minutes=5)
         refresh_exp = now() + timedelta(days=7)
 
         response.set_cookie(
@@ -49,7 +47,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             expires=access_exp,
             httponly=True,
             samesite="Lax",
-            secure=False,  # set True in production (requires HTTPS)
+            secure=False,
         )
         response.set_cookie(
             key="refreshToken",
@@ -60,10 +58,10 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             secure=False,
         )
 
-        # Optional: remove tokens from response body
         response.data = {"message": "Login successful"}
         return response
-    
+
+
 class MeView(APIView):
     authentication_classes = [CookieTokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -71,8 +69,6 @@ class MeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 
-class LoginView(TokenObtainPairView):
-    permission_classes = [AllowAny]
 
 class LogoutView(APIView):
     authentication_classes = [CookieTokenAuthentication]
@@ -86,6 +82,8 @@ class LogoutView(APIView):
 
 
 class EncryptedPrivateKeyView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         profile = UserProfile.objects.get(user=request.user)
@@ -96,31 +94,26 @@ class EncryptedPrivateKeyView(APIView):
             "iv": profile.iv
         })
 
+
 class AddFriendView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         username_to_add = request.data.get('username')
         try:
             user_to_add = User.objects.get(username=username_to_add)
         except User.DoesNotExist:
-            return Response(
-                {'detail': 'Użytkownik nie istnieje.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'detail': 'Użytkownik nie istnieje.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # ensure both profiles exist
         requester_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        friend_profile, _    = UserProfile.objects.get_or_create(user=user_to_add)
+        friend_profile, _ = UserProfile.objects.get_or_create(user=user_to_add)
 
         if requester_profile == friend_profile:
-            return Response(
-                {'detail': 'Nie możesz dodać siebie.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'detail': 'Nie możesz dodać siebie.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # add friend
         requester_profile.friends.add(friend_profile)
 
-        # if mutual, create chat room if needed
         if requester_profile in friend_profile.friends.all():
             chat_exists = ChatRoom.objects.filter(
                 user1=request.user, user2=user_to_add
@@ -131,23 +124,20 @@ class AddFriendView(APIView):
             if not chat_exists:
                 ChatRoom.objects.create(user1=request.user, user2=user_to_add)
 
-        return Response(
-            {'detail': f'Dodano {username_to_add} do znajomych.'},
-            status=status.HTTP_200_OK
-        )
+        return Response({'detail': f'Dodano {username_to_add} do znajomych.'}, status=status.HTTP_200_OK)
+
 
 class MutualFriendsView(APIView):
-    def get(self, request):
-        # ensure the requesting user's profile exists
-        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         mutual_friends = []
+
         for friend_profile in user_profile.friends.all():
-            # ensure friend's profile exists (probably yes)
             friend_user = friend_profile.user
-            # check reciprocal
             if user_profile in friend_profile.friends.all():
-                # find or create chat room
                 room = ChatRoom.objects.filter(
                     user1=request.user, user2=friend_user
                 ).first() or ChatRoom.objects.filter(
@@ -161,7 +151,10 @@ class MutualFriendsView(APIView):
 
         return Response({'mutual_friends': mutual_friends})
 
+
 class FriendRequestListView(generics.ListAPIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
     serializer_class = FriendRequestSerializer
 
     def get_queryset(self):
@@ -169,6 +162,8 @@ class FriendRequestListView(generics.ListAPIView):
 
 
 class SendFriendRequestView(generics.CreateAPIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
     serializer_class = FriendRequestSerializer
 
     def get_serializer_context(self):
@@ -176,6 +171,7 @@ class SendFriendRequestView(generics.CreateAPIView):
 
 
 class AcceptFriendRequestView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -193,11 +189,9 @@ class AcceptFriendRequestView(APIView):
         from_profile = UserProfile.objects.get(user=f_request.from_user)
         to_profile = UserProfile.objects.get(user=f_request.to_user)
 
-        # Add both directions
         from_profile.friends.add(to_profile)
         to_profile.friends.add(from_profile)
 
-        # Create chat room if not already there
         exists = ChatRoom.objects.filter(
             user1=f_request.from_user, user2=f_request.to_user
         ).exists() or ChatRoom.objects.filter(

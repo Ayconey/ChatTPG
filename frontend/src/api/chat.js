@@ -1,26 +1,13 @@
 // src/api/chat.js
-import { refreshAccessToken } from "./auth";
 
 const API_ROOT = "http://localhost:8000/chat";
 
-async function getAuthHeaders() {
-  let token = localStorage.getItem("accessToken");
-  if (!token) throw new Error("Not authenticated");
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
-
 async function callChat(path, opts = {}) {
-  let headers = await getAuthHeaders();
-  let res = await fetch(`${API_ROOT}${path}`, { headers, ...opts });
-  if (res.status === 401) {
-    // try refresh once
-    const newToken = await refreshAccessToken();
-    headers.Authorization = `Bearer ${newToken}`;
-    res = await fetch(`${API_ROOT}${path}`, { headers, ...opts });
-  }
+  const res = await fetch(`${API_ROOT}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    ...opts,
+  });
   if (!res.ok) throw new Error(`Chat API ${path} failed: ${res.status}`);
   return res.json();
 }

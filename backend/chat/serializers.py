@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Message, User, ChatRoom
+from .models import Message, ChatRoom
+from django.contrib.auth.models import User
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,12 +19,9 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(write_only=True)
-    room_id = serializers.IntegerField(write_only=True)
-
     class Meta:
         model = Message
-        fields = ['content', 'username', 'room_id']
+        fields = ['content']
 
     def validate_content(self, value):
         if not value.strip():
@@ -31,17 +29,5 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        username = validated_data.pop('username')
-        room_id = validated_data.pop('room_id')
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            raise serializers.ValidationError(f"User '{username}' not found.")
-
-        try:
-            room = ChatRoom.objects.get(id=room_id)
-        except ChatRoom.DoesNotExist:
-            raise serializers.ValidationError(f"Room with id {room_id} not found.")
-
-        return Message.objects.create(user=user, room=room, **validated_data)
+        # `sender` and `room` are injected via serializer.save(...) in the view
+        return Message.objects.create(**validated_data)
