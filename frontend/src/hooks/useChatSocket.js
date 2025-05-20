@@ -11,6 +11,7 @@ export function useChatSocket(room, onMessage) {
 
   useEffect(() => {
     if (!room) return;
+    console.log("Connecting to room:", room);
 
     const backendHost = "localhost:8000";
     const wsScheme    = window.location.protocol === "https:" ? "wss" : "ws";

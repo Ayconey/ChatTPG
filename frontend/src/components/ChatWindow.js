@@ -1,31 +1,37 @@
-// src/components/ChatWindow.js
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
 import { useChatSocket } from "../hooks/useChatSocket";
 
+// Returns a consistent room name for two users
+function getRoomName(user1, user2) {
+  if (!user1 || !user2) return null;
+  return [user1, user2].sort().join("");
+}
+
 export default function ChatWindow({ user, room }) {
   const [messages, setMessages] = useState([]);
-  const [draft, setDraft]       = useState("");
-  const endRef                  = useRef();
+  const [draft, setDraft] = useState("");
+  const endRef = useRef();
 
-  const handleIncoming = useCallback(
-    ({ message, username }) => {
-      setMessages((prev) => [
-        ...prev,
-        { content: message, username },
-      ]);
-    },
-    []
-  );
+  // Extract partner from the room
+  const partner = room?.name;
+  const socketRoomName = getRoomName(user, partner);
 
-  const { send } = useChatSocket(room && room.name, handleIncoming);
+  const handleIncoming = useCallback(({ message, username }) => {
+    setMessages((prev) => [...prev, { content: message, username }]);
+  }, []);
+
+  const { send } = useChatSocket(socketRoomName, handleIncoming);
 
   useEffect(() => {
     if (!room) return;
     fetchMessages(room.id)
       .then((data) =>
         setMessages(
-          data.map((m) => ({ content: m.content, username: m.username }))
+          data.map((m) => ({
+            content: m.content,
+            username: m.username,
+          }))
         )
       )
       .catch(console.error);
@@ -40,12 +46,12 @@ export default function ChatWindow({ user, room }) {
     const text = draft;
     setDraft("");
     try {
-      // first persist via REST
+      // Save to backend
       await createMessage(room.id, text, user);
-      // then broadcast via WS, including your username
+      // Broadcast to WebSocket
       send(text, user);
     } catch (err) {
-      console.error("Failed to send:", err);
+      console.error("❌ Failed to send:", err);
     }
   };
 
@@ -63,7 +69,7 @@ export default function ChatWindow({ user, room }) {
   return (
     <div className="chat-window">
       <div className="chat-header">
-        <h3>Chat: {room.name}</h3>
+        <h3>Chat with: {partner}</h3>
       </div>
 
       <div className="chat-messages">

@@ -175,22 +175,31 @@ class AcceptFriendRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
+        print("📥 AcceptFriendRequestView called")
+        print("🔐 Authenticated user:", request.user)
+
         try:
             f_request = FriendRequest.objects.get(id=pk, to_user=request.user)
+            print(f"✅ Found friend request ID {pk} for user: {request.user.username}")
         except FriendRequest.DoesNotExist:
+            print(f"❌ FriendRequest with ID {pk} not found or not for user {request.user.username}")
             return Response({'detail': 'Friend request not found.'}, status=404)
 
         if f_request.accepted:
+            print(f"⚠️ Friend request {pk} already accepted")
             return Response({'detail': 'Already accepted'}, status=400)
 
         f_request.accepted = True
         f_request.save()
+        print(f"✅ Friend request {pk} marked as accepted")
 
         from_profile = UserProfile.objects.get(user=f_request.from_user)
         to_profile = UserProfile.objects.get(user=f_request.to_user)
+        print("👥 Profiles loaded:", from_profile.user.username, to_profile.user.username)
 
         from_profile.friends.add(to_profile)
         to_profile.friends.add(from_profile)
+        print(f"🔗 Mutual friendship added between {from_profile.user.username} and {to_profile.user.username}")
 
         exists = ChatRoom.objects.filter(
             user1=f_request.from_user, user2=f_request.to_user
@@ -200,5 +209,8 @@ class AcceptFriendRequestView(APIView):
 
         if not exists:
             ChatRoom.objects.create(user1=f_request.from_user, user2=f_request.to_user)
+            print("💬 ChatRoom created")
+        else:
+            print("💬 ChatRoom already exists")
 
         return Response({'detail': 'Friend request accepted.'})

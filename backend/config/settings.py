@@ -91,9 +91,9 @@ CHANNEL_LAYERS = {
     },
 }
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        "users.auth.CookieTokenAuthentication"
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'users.auth.CookieTokenAuthentication'  # ✅ correct
+    ],
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
