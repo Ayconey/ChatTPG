@@ -1,14 +1,32 @@
-// src/api/auth.js
+// frontend/src/api/auth.js
 const API_ROOT = "http://localhost:8000/user";
 
 async function callApi(path, options = {}) {
-  const res = await fetch(`${API_ROOT}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include", // include cookies!
-    ...options,
-  });
-  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
-  return res.json();
+  const url = `${API_ROOT}${path}`;
+  console.log(`🌐 API Call: ${options.method || 'GET'} ${url}`);
+  
+  try {
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      credentials: "include", // include cookies!
+      ...options,
+    });
+    
+    console.log(`📊 Response: ${res.status} ${res.statusText}`);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`❌ API Error ${res.status}:`, errorText);
+      throw new Error(`API ${path} failed: ${res.status} - ${errorText}`);
+    }
+    
+    const data = await res.json();
+    console.log(`✅ API Success:`, data);
+    return data;
+  } catch (error) {
+    console.error(`💥 API Call Failed:`, error);
+    throw error;
+  }
 }
 
 export function registerUser(userData) {
@@ -35,4 +53,14 @@ export function getCurrentUser() {
 
 export function refreshAccessToken() {
   return callApi("/refresh/", { method: "POST" });
+}
+
+// NOWE ENDPOINTY CRYPTO
+export function getUserCryptoKeys() {
+  return callApi("/crypto/keys/");
+}
+
+export function getUserPublicKey(username) {
+  console.log(`🔍 Fetching public key for user: ${username}`);
+  return callApi(`/crypto/public-key/${username}/`);
 }

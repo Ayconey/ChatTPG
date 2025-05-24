@@ -1,5 +1,4 @@
-// src/api/chat.js
-
+// frontend/src/api/chat.js
 const API_ROOT = "http://localhost:8000/chat";
 
 async function callChat(path, opts = {}) {
@@ -20,9 +19,13 @@ export function fetchMessages(roomId) {
   return callChat(`/messages/${roomId}/`, { method: "GET" });
 }
 
-export function createMessage(roomId, content, username) {
+// ZAKTUALIZOWANE - teraz wysyłamy zaszyfrowane wiadomości
+export function createEncryptedMessage(roomId, encryptedData) {
   return callChat(`/messages/${roomId}/`, {
     method: "POST",
-    body: JSON.stringify({ username, content, room_id: roomId }),
+    body: JSON.stringify({
+      encrypted_content_for_sender: encryptedData.encrypted_content_for_sender,
+      encrypted_content_for_receiver: encryptedData.encrypted_content_for_receiver
+    }),
   });
 }

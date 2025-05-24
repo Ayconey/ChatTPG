@@ -1,5 +1,5 @@
 /*--------------------------------------------------
-  Minimal Dark Theme
+  Minimal Dark Theme + Crypto Indicators
 --------------------------------------------------*/
 :root {
   --bg: #111;
@@ -8,6 +8,9 @@
   --accent: #0a84ff;
   --accent-dark: #0667c8;
   --border: #333;
+  --success: #32d74b;
+  --warning: #ff9f0a;
+  --error: #ff453a;
 }
 
 * {
@@ -34,6 +37,10 @@ button {
 }
 button:hover {
   background: var(--accent-dark);
+}
+button:disabled {
+  background: #666;
+  cursor: not-allowed;
 }
 
 .auth-container, .app {
@@ -64,8 +71,8 @@ button:hover {
   color: var(--text);
   border-radius: 0.25rem;
 }
-.error { color: #f66; margin-bottom: 0.5rem; }
-.info { color: #6f6; margin-bottom: 0.5rem; }
+.error { color: var(--error); margin-bottom: 0.5rem; }
+.info { color: var(--success); margin-bottom: 0.5rem; }
 
 .app-header {
   width: 100%;
@@ -74,6 +81,20 @@ button:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-crypto-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.crypto-ready {
+  color: var(--success);
+}
+
+.crypto-loading {
+  color: var(--warning);
 }
 
 .main {
@@ -107,6 +128,13 @@ button:hover {
 .chat-header {
   padding: 1rem;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.loading-indicator {
+  font-size: 0.9rem;
+  color: var(--warning);
 }
 .chat-messages {
   flex: 1;
@@ -127,17 +155,30 @@ button:hover {
   border-radius: 0.25rem;
 }
 
-/* bubbles */
+/* Message bubbles with crypto indicators */
 .message {
   margin-bottom: 0.75rem;
   display: flex;
   flex-direction: column;
 }
-.message .username {
+.message-username {
   font-size: 0.75rem;
   opacity: 0.7;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
+.ws-indicator {
+  color: var(--accent);
+}
+.encrypted-indicator {
+  color: var(--success);
+}
+.error-indicator {
+  color: var(--error);
+}
+
 .bubble {
   max-width: 70%;
   padding: 0.75rem;
@@ -162,6 +203,41 @@ button:hover {
   border-bottom-left-radius: 0;
 }
 
+/* Loading states */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 1.1rem;
+  color: var(--warning);
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.loading-screen h2 {
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.loading-screen p {
+  margin-bottom: 2rem;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.loading-screen button {
+  margin: 0.5rem;
+}
+
 /* Sidebar sections */
 .sidebar-section {
   padding: 1rem;
@@ -174,7 +250,7 @@ button:hover {
   color: var(--accent);
 }
 
-/* “Add Friend” form */
+/* "Add Friend" form */
 .add-friend-form {
   display: flex;
   gap: 0.5rem;
@@ -196,6 +272,6 @@ button:hover {
 /* Error beneath form */
 .error {
   margin-top: 0.5rem;
-  color: #f66;
+  color: var(--error);
   font-size: 0.8rem;
 }

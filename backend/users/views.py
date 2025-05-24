@@ -1,3 +1,4 @@
+# backend/users/views.py
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.response import Response
@@ -20,11 +21,19 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
+        print("📥 RegisterView called with data:", request.data.keys())
+        print("🔐 Has crypto fields:", {
+            'public_key': bool(request.data.get('public_key')),
+            'salt': bool(request.data.get('salt')),
+            'iv': bool(request.data.get('iv'))
+        })
+
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             print("❌ Registration Error:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         self.perform_create(serializer)
+        print("✅ Registration successful")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -81,18 +90,84 @@ class LogoutView(APIView):
         return response
 
 
-class EncryptedPrivateKeyView(APIView):
+# NOWY - endpoint do pobierania kluczy crypto dla użytkownika (salt, iv, public_key)
+class UserCryptoKeysView(APIView):
     authentication_classes = [CookieTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        profile = UserProfile.objects.get(user=request.user)
+        """Zwraca salt i IV dla aktualnego użytkownika (do regeneracji kluczy)"""
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+        # Jeśli profile nie ma kluczy crypto, wygeneruj je
+        if not profile.salt or not profile.iv:
+            import secrets
+            import base64
+
+            profile.salt = base64.b64encode(secrets.token_bytes(16)).decode()
+            profile.iv = base64.b64encode(secrets.token_bytes(12)).decode()
+            profile.save()
+            print(f"🔐 Generated crypto fields for user: {request.user.username}")
+
         return Response({
-            "encrypted_private_key": profile.encrypted_private_key,
-            "public_key": profile.public_key,
             "salt": profile.salt,
-            "iv": profile.iv
+            "iv": profile.iv,
+            "public_key": profile.public_key
         })
+
+
+# NOWY - endpoint do pobierania klucza publicznego konkretnego użytkownika
+class UserPublicKeyView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        """Zwraca klucz publiczny konkretnego użytkownika"""
+        print(f"📥 UserPublicKeyView called for username: {username}")
+        print(f"🔐 Authenticated user: {request.user}")
+
+        try:
+            user = User.objects.get(username=username)
+            print(f"✅ Found user: {user}")
+        except User.DoesNotExist:
+            print(f"❌ User not found: {username}")
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            profile = UserProfile.objects.get(user=user)
+            print(f"✅ Found profile: {profile}")
+            print(f"🔑 Has public key: {bool(profile.public_key)}")
+            if profile.public_key:
+                print(f"🔑 Public key preview: {profile.public_key[:50]}...")
+        except UserProfile.DoesNotExist:
+            print(f"❌ UserProfile not found for user: {username}")
+            return Response({'detail': 'User profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        response_data = {
+            "username": username,
+            "public_key": profile.public_key
+        }
+        print(f"📤 Returning response: {response_data}")
+        return Response(response_data)
+
+
+class UpdatePublicKeyView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Aktualizuje klucz publiczny użytkownika"""
+        public_key = request.data.get('public_key')
+
+        if not public_key:
+            return Response({'detail': 'Public key required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        profile.public_key = public_key
+        profile.save()
+
+        print(f"🔐 Updated public key for user: {request.user.username}")
+        return Response({'detail': 'Public key updated successfully.'})
 
 
 class AddFriendView(APIView):

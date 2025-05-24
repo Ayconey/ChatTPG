@@ -1,3 +1,4 @@
+# backend/chat/serializers.py
 from rest_framework import serializers
 from .models import Message, ChatRoom
 from django.contrib.auth.models import User
@@ -14,20 +15,31 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ['username', 'content', 'timestamp', 'room_id']
+        fields = [
+            'username', 
+            'encrypted_content_for_sender', 
+            'encrypted_content_for_receiver', 
+            'timestamp', 
+            'room_id'
+        ]
         read_only_fields = ['username', 'timestamp', 'room_id']
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = ['content']
+        fields = ['encrypted_content_for_sender', 'encrypted_content_for_receiver']
 
-    def validate_content(self, value):
+    def validate_encrypted_content_for_sender(self, value):
         if not value.strip():
-            raise serializers.ValidationError("Content cannot be empty.")
+            raise serializers.ValidationError("Encrypted content for sender cannot be empty.")
+        return value
+
+    def validate_encrypted_content_for_receiver(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Encrypted content for receiver cannot be empty.")
         return value
 
     def create(self, validated_data):
-        # `sender` and `room` are injected via serializer.save(...) in the view
+        # `user` and `room` are injected via serializer.save(...) in the view
         return Message.objects.create(**validated_data)
