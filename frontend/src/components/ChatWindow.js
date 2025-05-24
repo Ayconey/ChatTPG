@@ -4,9 +4,10 @@ import { fetchMessages, createEncryptedMessage } from "../api/chat";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useCrypto } from "../contexts/CryptoContext";
 import { 
-  prepareEncryptedMessage, 
-  decryptReceivedMessage 
-} from "../utils/messageEncryption";
+  prepareSymmetricEncryptedMessage, 
+  decryptSymmetricMessage,
+  generateUserSharedSecret
+} from "../utils/symmetricMessageEncryption";
 
 // Returns a consistent room name for two users
 function getRoomName(user1, user2) {
@@ -21,7 +22,7 @@ export default function ChatWindow({ user, room }) {
   const [decryptionErrors, setDecryptionErrors] = useState({});
   const endRef = useRef();
   
-  const { currentUserCrypto, getPublicKeyForUser, isReady } = useCrypto();
+  const { currentUserCrypto, getCryptoDataForUser, isReady } = useCrypto();
 
   // Extract partner from the room
   const partner = room?.name;
@@ -37,10 +38,21 @@ export default function ChatWindow({ user, room }) {
     }
 
     try {
-      const decryptedContent = await decryptReceivedMessage(
+      // Generuj shared secret (deterministyczny)
+      const sharedSecret = generateUserSharedSecret(
+        currentUserCrypto.username, 
+        currentUserCrypto.salt
+      );
+
+      // Określ drugiego użytkownika w konwersacji
+      const otherUser = messageData.username === user ? partner : messageData.username;
+
+      const decryptedContent = await decryptSymmetricMessage(
         messageData, 
-        currentUserCrypto.privateKey, 
-        currentUserCrypto.username
+        currentUserCrypto.username,
+        otherUser,
+        currentUserCrypto,
+        sharedSecret
       );
       
       setMessages(prev => [...prev, {
@@ -57,14 +69,13 @@ export default function ChatWindow({ user, room }) {
         error: true
       }]);
     }
-  }, [currentUserCrypto]);
+  }, [currentUserCrypto, user, partner]);
 
   /**
    * Handler dla wiadomości z WebSocket
    */
   const handleIncoming = useCallback(({ message, username }) => {
     // WebSocket wysyła niezaszyfrowaną wiadomość - to jest dla real-time
-    // Ale w bazie jest zapisana zaszyfrowana, więc tutaj dodajemy jako plaintext
     setMessages((prev) => [...prev, { 
       content: message, 
       username,
@@ -113,33 +124,32 @@ export default function ChatWindow({ user, room }) {
     setLoading(true);
 
     try {
-      // 1. Pobierz klucz publiczny odbiorcy
-      const receiverPublicKey = await getPublicKeyForUser(partner);
-      if (!receiverPublicKey) {
-        throw new Error('Could not get receiver public key');
-      }
+      // Generuj shared secret
+      const sharedSecret = generateUserSharedSecret(
+        currentUserCrypto.username, 
+        currentUserCrypto.salt
+      );
 
-      // 2. Przygotuj zaszyfrowaną wiadomość
-      const encryptedData = await prepareEncryptedMessage(
+      // Przygotuj zaszyfrowaną wiadomość
+      const encryptedData = await prepareSymmetricEncryptedMessage(
         text,
-        receiverPublicKey,
-        currentUserCrypto.publicKey
+        user,
+        partner,
+        currentUserCrypto,
+        sharedSecret
       );
 
       console.log('🔐 Sending encrypted message:', {
         receiver: partner,
-        sender: currentUserCrypto.username,
+        sender: user,
         originalLength: text.length,
-        encryptedLengths: {
-          forReceiver: encryptedData.encrypted_content_for_receiver.length,
-          forSender: encryptedData.encrypted_content_for_sender.length
-        }
+        encryptedLength: encryptedData.encrypted_content_for_receiver.length
       });
 
-      // 3. Zapisz w bazie (zaszyfrowane)
+      // Zapisz w bazie (zaszyfrowane)
       await createEncryptedMessage(room.id, encryptedData);
 
-      // 4. Wyślij przez WebSocket (niezaszyfrowane - dla real-time)
+      // Wyślij przez WebSocket (niezaszyfrowane - dla real-time)
       send(text, user);
 
       console.log('✅ Message sent successfully');
