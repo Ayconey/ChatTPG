@@ -18,8 +18,10 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
-
+    authentication_classes = []
     def create(self, request, *args, **kwargs):
+        print("view message")
+        print(request.data)
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             print("❌ Registration Error:", serializer.errors)
@@ -69,7 +71,6 @@ class MeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 
-
 class LogoutView(APIView):
     authentication_classes = [CookieTokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -79,20 +80,6 @@ class LogoutView(APIView):
         response.delete_cookie("accessToken")
         response.delete_cookie("refreshToken")
         return response
-
-
-class EncryptedPrivateKeyView(APIView):
-    authentication_classes = [CookieTokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        profile = UserProfile.objects.get(user=request.user)
-        return Response({
-            "encrypted_private_key": profile.encrypted_private_key,
-            "public_key": profile.public_key,
-            "salt": profile.salt,
-            "iv": profile.iv
-        })
 
 
 class AddFriendView(APIView):
