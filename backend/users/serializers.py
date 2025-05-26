@@ -19,19 +19,15 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        print('serializer message')
-        print(validated_data)
         public_key = validated_data.pop('public_key', None)
         salt = validated_data.pop('salt', None)
 
         user = User.objects.create_user(**validated_data)
 
-        UserProfile.objects.create(
-            user=user,
-            public_key=public_key,
-            salt=salt
-        )
-
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile.salt = salt
+        profile.public_key = public_key
+        profile.save()
         return user
 
 class FriendRequestSerializer(serializers.ModelSerializer):

@@ -20,8 +20,6 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     authentication_classes = []
     def create(self, request, *args, **kwargs):
-        print("view message")
-        print(request.data)
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             print("❌ Registration Error:", serializer.errors)
