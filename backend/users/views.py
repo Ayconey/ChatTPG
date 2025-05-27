@@ -131,7 +131,8 @@ class MutualFriendsView(APIView):
 
                 mutual_friends.append({
                     'username': friend_user.username,
-                    'room_id': room.id if room else None
+                    'room_id': room.id if room else None,
+                    'public_key': friend_profile.public_key
                 })
 
         return Response({'mutual_friends': mutual_friends})

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
+import { fetchMutualFriends } from "../api/friends";
 import { useChatSocket } from "../hooks/useChatSocket";
 
 function getRoomName(user1, user2) {
@@ -7,6 +8,7 @@ function getRoomName(user1, user2) {
   return [user1, user2].sort().join("");
 }
 
+// Crypto functions
 async function deriveSharedSecret(privateKeyHex, publicKeyHex) {
   const enc = new TextEncoder();
   const combined = privateKeyHex + publicKeyHex;
@@ -24,22 +26,17 @@ async function encryptMessage(text, recipientPublicKey, myPublicKey) {
   const enc = new TextEncoder();
   const privateKey = localStorage.getItem('privateKey');
   
-  // Shared secret for recipient
   const sharedSecretRecipient = await deriveSharedSecret(privateKey, recipientPublicKey);
-  
-  // Shared secret for myself (to read my own messages)
   const sharedSecretSender = await deriveSharedSecret(privateKey, myPublicKey);
   
   const iv = crypto.getRandomValues(new Uint8Array(12));
   
-  // Encrypt for recipient
   const encryptedForRecipient = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     sharedSecretRecipient,
     enc.encode(text)
   );
   
-  // Encrypt for sender (myself)
   const encryptedForSender = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     sharedSecretSender,
@@ -53,10 +50,10 @@ async function encryptMessage(text, recipientPublicKey, myPublicKey) {
   };
 }
 
-async function decryptMessage(encryptedContent, iv, senderPublicKey) {
+async function decryptMessage(encryptedContent, iv, publicKey) {
   const dec = new TextDecoder();
   const privateKey = localStorage.getItem('privateKey');
-  const sharedSecret = await deriveSharedSecret(privateKey, senderPublicKey);
+  const sharedSecret = await deriveSharedSecret(privateKey, publicKey);
   
   const encryptedData = Uint8Array.from(atob(encryptedContent), c => c.charCodeAt(0));
   const ivData = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
@@ -79,16 +76,15 @@ export default function ChatWindow({ user, room }) {
   const partner = room?.name;
   const socketRoomName = getRoomName(user, partner);
 
-  const handleIncoming = useCallback(async ({ content_for_sender, content_for_receiver, username, iv }) => {
+  const handleIncoming = useCallback(async (data) => {
+    const { content_for_sender, content_for_receiver, username, iv } = data;
     try {
       const myPublicKey = localStorage.getItem('publicKey');
       let decrypted;
       
       if (username === user) {
-        // I sent this message - decrypt using sender version
         decrypted = await decryptMessage(content_for_sender, iv, myPublicKey);
       } else {
-        // I received this message - decrypt using receiver version
         decrypted = await decryptMessage(content_for_receiver, iv, partnerPublicKey);
       }
       
@@ -101,46 +97,37 @@ export default function ChatWindow({ user, room }) {
 
   const { send } = useChatSocket(socketRoomName, handleIncoming);
 
+  // Load partner's public key
   useEffect(() => {
     if (!partner) return;
     
-    fetch(`http://localhost:8000/user/me/`, { credentials: "include" })
-      .then(r => r.json())
-      .then(async userData => {
-        const allUsers = await fetch(`http://localhost:8000/user/friends/mutual/`, { 
-          credentials: "include" 
-        }).then(r => r.json());
-        
-        const partnerData = allUsers.mutual_friends.find(f => f.username === partner);
-        if (partnerData?.public_key) {
-          setPartnerPublicKey(partnerData.public_key);
+    fetchMutualFriends()
+      .then(data => {
+        const friend = data.mutual_friends.find(f => f.username === partner);
+        if (friend?.public_key) {
+          setPartnerPublicKey(friend.public_key);
         }
       })
       .catch(console.error);
   }, [partner]);
 
+  // Load messages
   useEffect(() => {
     if (!room || !partnerPublicKey) return;
     
     fetchMessages(room.id)
       .then(async (data) => {
+        const myPublicKey = localStorage.getItem('publicKey');
         const decryptedMessages = await Promise.all(
           data.map(async (m) => {
             try {
-              const myPublicKey = localStorage.getItem('publicKey');
-              let content;
-              
-              if (m.username === user) {
-                // My message - use content_for_sender
-                content = await decryptMessage(m.content_for_sender, m.iv, myPublicKey);
-              } else {
-                // Partner's message - use content_for_receiver
-                content = await decryptMessage(m.content_for_receiver, m.iv, partnerPublicKey);
-              }
-              
-              return { content, username: m.username };
-            } catch {
-              return { content: "[Old message - cannot decrypt]", username: m.username };
+              // Backend returns 'content' which is already the correct version
+              const publicKey = m.username === user ? myPublicKey : partnerPublicKey;
+              const decrypted = await decryptMessage(m.content, m.iv, publicKey);
+              return { content: decrypted, username: m.username };
+            } catch (err) {
+              console.error("Decrypt error:", err);
+              return { content: "[Cannot decrypt]", username: m.username };
             }
           })
         );
@@ -162,7 +149,7 @@ export default function ChatWindow({ user, room }) {
       const myPublicKey = localStorage.getItem('publicKey');
       const encrypted = await encryptMessage(text, partnerPublicKey, myPublicKey);
       
-      await createMessage(room.id, encrypted, user);
+      await createMessage(room.id, encrypted);
       send(encrypted, user);
     } catch (err) {
       console.error("Failed to send:", err);
@@ -187,7 +174,7 @@ export default function ChatWindow({ user, room }) {
   return (
     <div className="chat-window">
       <div className="chat-header">
-        <h3>Chat with: {partner}</h3>
+        <h3>🔒 Encrypted chat with: {partner}</h3>
       </div>
 
       <div className="chat-messages">
@@ -206,12 +193,12 @@ export default function ChatWindow({ user, room }) {
       <div className="chat-input">
         <input
           type="text"
-          placeholder="Type your message…"
+          placeholder="Type your encrypted message…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <button onClick={handleSend}>Send</button>
+        <button onClick={handleSend}>Send 🔒</button>
       </div>
     </div>
   );

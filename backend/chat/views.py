@@ -30,7 +30,6 @@ class ChatRoomListView(generics.ListCreateAPIView):
         user = self.request.user
         return ChatRoom.objects.filter(Q(user1=user) | Q(user2=user))
 
-    # Optional: create a DM room by POSTing {"username": "<other_user>"}
     def create(self, request, *args, **kwargs):
         other_username = request.data.get("username")
         if not other_username:
@@ -65,6 +64,12 @@ class MessageListView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         return MessageCreateSerializer if self.request.method == "POST" else MessageSerializer
 
+    def get_serializer_context(self):
+        # Pass request context to serializer for get_content method
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
     def get_room(self):
         try:
             room = ChatRoom.objects.get(id=self.kwargs["room_id"])
@@ -75,11 +80,9 @@ class MessageListView(generics.ListCreateAPIView):
         return room
 
     def get_queryset(self):
-        # Called for GET – only messages for this room
         room = self.get_room()
         return Message.objects.filter(room=room).order_by("timestamp")
 
     def perform_create(self, serializer):
-        # Called for POST – ensure user is a participant
         room = self.get_room()
         serializer.save(user=self.request.user, room=room)
