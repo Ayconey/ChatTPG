@@ -43,12 +43,17 @@ export function useChatSocket(room, onMessage) {
     };
   }, [room]);  // <-- only room here!
 
-  const send = (message, username) => {
-    const ws = socketRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ message, username }));
-    }
-  };
+const send = (encryptedData, username) => {
+  const ws = socketRef.current;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ 
+      content_for_sender: encryptedData.content_for_sender,
+      content_for_receiver: encryptedData.content_for_receiver,
+      iv: encryptedData.iv,
+      username 
+    }));
+  }
+};
 
   return { send };
 }

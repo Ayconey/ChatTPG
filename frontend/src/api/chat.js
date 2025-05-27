@@ -20,9 +20,15 @@ export function fetchMessages(roomId) {
   return callChat(`/messages/${roomId}/`, { method: "GET" });
 }
 
-export function createMessage(roomId, content, username) {
+export function createMessage(roomId, encryptedData, username) {
   return callChat(`/messages/${roomId}/`, {
     method: "POST",
-    body: JSON.stringify({ username, content, room_id: roomId }),
+    body: JSON.stringify({ 
+      username, 
+      content_for_sender: encryptedData.content_for_sender,
+      content_for_receiver: encryptedData.content_for_receiver,
+      iv: encryptedData.iv,
+      room_id: roomId 
+    }),
   });
 }

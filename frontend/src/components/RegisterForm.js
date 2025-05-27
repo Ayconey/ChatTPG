@@ -1,4 +1,3 @@
-// src/components/RegisterForm.js
 import React, { useState } from "react";
 import { registerUser } from "../api/auth";
 
@@ -7,87 +6,47 @@ export default function RegisterForm({ backToLogin }) {
   const [p, setP] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function generateCryptoMaterial(password) {
+  async function generateKeys(username, password) {
     const enc = new TextEncoder();
-
-    // 1. Generate RSA key pair
-    const keyPair = await window.crypto.subtle.generateKey(
-      {
-        name: "RSA-OAEP",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: "SHA-256",
-      },
-      true,
-      ["encrypt", "decrypt"]
-    );
-
-    // 2. Export public key (SPKI)
-    const publicKeyRaw = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
-    const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyRaw)));
-
-    // 3. Export private key (PKCS8)
-    const privateKeyRaw = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-
-    // 4. Generate salt and IV
-    const salt = window.crypto.getRandomValues(new Uint8Array(16));
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
-    // 5. Derive AES key from password
-    const keyMaterial = await window.crypto.subtle.importKey(
-      "raw",
-      enc.encode(password),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-
-    const aesKey = await window.crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt,
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt"]
-    );
-
-    // 6. Encrypt private key
-    const encryptedPrivateKeyRaw = await window.crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      aesKey,
-      privateKeyRaw
-    );
-
-    // Encode to base64
-    const encryptedPrivateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedPrivateKeyRaw)));
+    const salt = crypto.getRandomValues(new Uint8Array(16));
     const saltBase64 = btoa(String.fromCharCode(...salt));
-    const ivBase64 = btoa(String.fromCharCode(...iv));
 
-    return {
-      public_key: publicKeyBase64,
-      encrypted_private_key: encryptedPrivateKeyBase64,
-      salt: saltBase64,
-      iv: ivBase64,
-    };
+    const seedData = enc.encode(username + ":" + password + ":" + saltBase64);
+    const seed = await crypto.subtle.digest("SHA-256", seedData);
+    
+    const privateKey = Array.from(new Uint8Array(seed))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    const publicKeyData = await crypto.subtle.digest("SHA-256", enc.encode(privateKey));
+    const publicKey = Array.from(new Uint8Array(publicKeyData))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    // i tak ziomek musi się zalogować to niepotrzebne, dlatestów: 8ea4295cc23381a7486d039c5e6db35c35f0df45d2807d3705539ecb564bce35
+    // localStorage.setItem('privateKey', privateKey);
+    // localStorage.setItem('publicKey', publicKey);
+    
+    return { public_key: publicKey, salt: saltBase64};
   }
 
   async function submit(e) {
     e.preventDefault();
+    if (!u.trim() || !p.trim()) {
+      setMsg("All fields required");
+      return;
+    }
     try {
-      const cryptoData = await generateCryptoMaterial(p.trim());
+      const keys = await generateKeys(u.trim(), p.trim());
       await registerUser({
         username: u.trim(),
         password: p.trim(),
-        ...cryptoData,
+        public_key: keys.public_key,
+        salt: keys.salt
       });
       setMsg("Success! Please log in.");
     } catch (err) {
-      console.error(err);
-      setMsg("Registration failed.");
+      setMsg("Registration failed");
     }
   }
 
@@ -95,21 +54,14 @@ export default function RegisterForm({ backToLogin }) {
     <div className="auth-container">
       <form onSubmit={submit}>
         <h2>Register</h2>
-        {msg && <div className="info">{msg}</div>}
+        {msg && <div className={msg.includes("Success") ? "info" : "error"}>{msg}</div>}
         <label>Username</label>
         <input value={u} onChange={(e) => setU(e.target.value)} />
         <label>Password</label>
-        <input
-          type="password"
-          value={p}
-          onChange={(e) => setP(e.target.value)}
-        />
+        <input type="password" value={p} onChange={(e) => setP(e.target.value)} />
         <button type="submit">Register</button>
         <p>
-          Have account?{" "}
-          <button type="button" onClick={backToLogin}>
-            Login
-          </button>
+          Have account? <button type="button" onClick={backToLogin}>Login</button>
         </p>
       </form>
     </div>
