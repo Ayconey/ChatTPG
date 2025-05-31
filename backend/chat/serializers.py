@@ -11,23 +11,11 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     room_id = serializers.IntegerField(source="room.id", read_only=True)
-    content = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ['username', 'content', 'timestamp', 'room_id', 'iv']
+        fields = ['username', 'content_for_sender', 'content_for_receiver', 'timestamp', 'room_id', 'iv']
         read_only_fields = ['username', 'timestamp', 'room_id']
-
-    def get_content(self, obj):
-        # Return appropriate content based on who's requesting
-        request = self.context.get('request')
-        if request and request.user == obj.user:
-            # Sender reading their own message
-            return obj.content_for_sender
-        else:
-            # Receiver reading the message
-            return obj.content_for_receiver
-
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     content_for_sender = serializers.CharField()
