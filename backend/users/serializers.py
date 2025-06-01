@@ -1,33 +1,37 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile,FriendRequest
-
+from .models import UserProfile, FriendRequest
 
 class UserSerializer(serializers.ModelSerializer):
-    # Write-only fields for registration
-    public_key = serializers.CharField(write_only=True, required=False)
-    salt = serializers.CharField(write_only=True, required=False)
-
-    # Read-only fields from profile
-    profile_public_key = serializers.CharField(source='userprofile.public_key', read_only=True)
-    profile_salt = serializers.CharField(source='userprofile.salt', read_only=True)
+    # Crypto fields - write only for registration
+    public_key = serializers.CharField(write_only=True)
+    encrypted_private_key = serializers.CharField(write_only=True)
+    salt = serializers.CharField(write_only=True)
+    iv = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'public_key', 'salt',
-                  'profile_public_key', 'profile_salt']
+        fields = ['id', 'username', 'password', 'public_key', 'encrypted_private_key', 'salt', 'iv']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        public_key = validated_data.pop('public_key', None)
-        salt = validated_data.pop('salt', None)
+        # Extract crypto data
+        public_key = validated_data.pop('public_key')
+        encrypted_private_key = validated_data.pop('encrypted_private_key')
+        salt = validated_data.pop('salt')
+        iv = validated_data.pop('iv')
 
+        # Create user
         user = User.objects.create_user(**validated_data)
 
+        # Create or update profile with crypto data
         profile, created = UserProfile.objects.get_or_create(user=user)
-        profile.salt = salt
         profile.public_key = public_key
+        profile.encrypted_private_key = encrypted_private_key
+        profile.salt = salt
+        profile.iv = iv
         profile.save()
+
         return user
 
 class FriendRequestSerializer(serializers.ModelSerializer):

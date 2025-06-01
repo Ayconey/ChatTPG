@@ -200,3 +200,25 @@ class AcceptFriendRequestView(APIView):
             print("💬 ChatRoom already exists")
 
         return Response({'detail': 'Friend request accepted.'})
+
+class EncryptedPrivateKeyView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Returns the encrypted private key and crypto parameters for the authenticated user
+        """
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            return Response({
+                "encrypted_private_key": profile.encrypted_private_key,
+                "public_key": profile.public_key,
+                "salt": profile.salt,
+                "iv": profile.iv
+            })
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"detail": "User profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
