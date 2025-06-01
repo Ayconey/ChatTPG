@@ -16,6 +16,12 @@ export default function App() {
   const [view, setView] = useState("login");
   const [room, setRoom] = useState(null);
 
+  // Clean up crypto data on logout
+  const cleanupCrypto = () => {
+    sessionStorage.removeItem("cryptoParams");
+    delete window.userPrivateKey;
+  };
+
   // Try to restore session on load
   useEffect(() => {
     getCurrentUser()
@@ -23,6 +29,7 @@ export default function App() {
       .catch(() => {
         setUser(null);
         setView("login");
+        cleanupCrypto();
       });
   }, []);
 
@@ -33,6 +40,7 @@ export default function App() {
       refreshAccessToken().catch(() => {
         setUser(null);
         setView("login");
+        cleanupCrypto();
       });
     }, 5 * 60 * 1000);
     return () => clearInterval(iv);
@@ -62,6 +70,7 @@ export default function App() {
             logoutUser().finally(() => {
               setUser(null);
               setView("login");
+              cleanupCrypto();
             });
           }}
         >

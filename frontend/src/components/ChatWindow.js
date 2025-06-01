@@ -2,69 +2,10 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
 import { fetchMutualFriends } from "../api/friends";
 import { useChatSocket } from "../hooks/useChatSocket";
-
+import { encryptMessage,decryptMessage } from "../utils/cryptoUtils";
 function getRoomName(user1, user2) {
   if (!user1 || !user2) return null;
   return [user1, user2].sort().join("");
-}
-
-// Crypto functions
-async function deriveSharedSecret(privateKeyHex, publicKeyHex) {
-  const enc = new TextEncoder();
-  const combined = privateKeyHex + publicKeyHex;
-  const hash = await crypto.subtle.digest("SHA-256", enc.encode(combined));
-  return crypto.subtle.importKey(
-    "raw",
-    hash,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-async function encryptMessage(text, recipientPublicKey, myPublicKey) {
-  const enc = new TextEncoder();
-  const privateKey = localStorage.getItem('privateKey');
-  
-  const sharedSecretRecipient = await deriveSharedSecret(privateKey, recipientPublicKey);
-  const sharedSecretSender = await deriveSharedSecret(privateKey, myPublicKey);
-  
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  
-  const encryptedForRecipient = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    sharedSecretRecipient,
-    enc.encode(text)
-  );
-  
-  const encryptedForSender = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    sharedSecretSender,
-    enc.encode(text)
-  );
-  
-  return {
-    content_for_sender: btoa(String.fromCharCode(...new Uint8Array(encryptedForSender))),
-    content_for_receiver: btoa(String.fromCharCode(...new Uint8Array(encryptedForRecipient))),
-    iv: btoa(String.fromCharCode(...iv))
-  };
-}
-
-async function decryptMessage(encryptedContent, iv, publicKey) {
-  const dec = new TextDecoder();
-  const privateKey = localStorage.getItem('privateKey');
-  const sharedSecret = await deriveSharedSecret(privateKey, publicKey);
-  
-  const encryptedData = Uint8Array.from(atob(encryptedContent), c => c.charCodeAt(0));
-  const ivData = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
-  
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: ivData },
-    sharedSecret,
-    encryptedData
-  );
-  
-  return dec.decode(decrypted);
 }
 
 export default function ChatWindow({ user, room }) {
@@ -79,7 +20,7 @@ export default function ChatWindow({ user, room }) {
   const handleIncoming = useCallback(async (data) => {
     const { content_for_sender, content_for_receiver, username, iv } = data;
     try {
-      const myPublicKey = localStorage.getItem('publicKey');
+      const myPublicKey = window.userPublicKey
       let decrypted;
       
       if (username === user) {

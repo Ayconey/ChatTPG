@@ -1,49 +1,73 @@
+// src/components/LoginForm.js
 import React, { useState } from "react";
-import { loginUser, getCurrentUser } from "../api/auth";
+import { loginUser, getUserKeys } from "../api/auth";
+import { decryptPrivateKey,encryptMessage,decryptMessage } from "../utils/cryptoUtils";
 
 export default function LoginForm({ onLogin, switchToRegister }) {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
 
-  async function regenerateKeys(username, password, salt) {
-    const enc = new TextEncoder();
-    const seedData = enc.encode(username + ":" + password + ":" + salt);
-    const seed = await crypto.subtle.digest("SHA-256", seedData);
-    
-    const privateKey = Array.from(new Uint8Array(seed))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    const publicKeyData = await crypto.subtle.digest("SHA-256", enc.encode(privateKey));
-    const publicKey = Array.from(new Uint8Array(publicKeyData))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    localStorage.setItem('privateKey', privateKey);
-    localStorage.setItem('publicKey', publicKey);
-    localStorage.setItem('username', username);
-    
-    return { privateKey, publicKey };
-  }
-
   async function submit(e) {
     e.preventDefault();
     try {
+      // 1. Login user
       await loginUser(u.trim(), p.trim());
       
-      const userData = await getCurrentUser();
+      // 2. Get encrypted private key and crypto params
+      const { encrypted_private_key, salt, iv, public_key } = await getUserKeys();
       
-      const keys = await regenerateKeys(u.trim(), p.trim(), userData.profile_salt);
+      // 3. Decrypt private key using password
+      const privateKey = await decryptPrivateKey(
+        encrypted_private_key,
+        p.trim(),
+        salt,
+        iv
+      );
+      console.log(privateKey);
+
+// 3. Test szyfrowania/odszyfrowywania
+async function testCrypto() {
+  const testMessage = "Test message 123";
+  
+  // Zaszyfruj swoim kluczem publicznym
+  const encrypted = await encryptMessage(testMessage, window.userPublicKey);
+  console.log("Encrypted:", encrypted);
+  
+  // Odszyfruj swoim kluczem prywatnym
+  const decrypted = await decryptMessage(encrypted, window.userPrivateKey);
+  console.log("Decrypted:", decrypted);
+  console.log("Match:", testMessage === decrypted);
+}
+
+    // 4. Store keys in sessionStorage (temporary storage during session)
+    // Note: In production, consider more secure storage methods
+    sessionStorage.setItem("cryptoParams", JSON.stringify({
+      encrypted_private_key,
+      salt,
+      iv,
+      public_key
+    }));
       
-      if (keys.publicKey !== userData.profile_public_key) {
-        throw new Error("Invalid keys!");
-      }
-      
+      // 5. Store the decrypted key in memory (we'll need a better solution later)
+      window.userPublicKey = public_key;
+      window.userPrivateKey = privateKey;
+            // 1. Sprawdź czy klucz istnieje
+console.log("Private key exists:", !!window.userPrivateKey);
+console.log("Public key (base64):", window.userPublicKey);
+
+// 2. Sprawdź właściwości klucza
+if (window.userPrivateKey) {
+  console.log("Private key type:", window.userPrivateKey.type); // "private"
+  console.log("Private key algorithm:", window.userPrivateKey.algorithm); // RSA-OAEP
+  console.log("Private key usages:", window.userPrivateKey.usages); // ["decrypt"]
+  console.log("Private key extractable:", window.userPrivateKey.extractable); // false
+}
+testCrypto();
       onLogin(u.trim());
-    } catch {
-      setErr("Invalid credentials");
-      localStorage.clear();
+    } catch (error) {
+      console.error("Login error:", error);
+      setErr("Invalid credentials or decryption failed");
     }
   }
 
@@ -53,12 +77,24 @@ export default function LoginForm({ onLogin, switchToRegister }) {
         <h2>Login</h2>
         {err && <div className="error">{err}</div>}
         <label>Username</label>
-        <input value={u} onChange={(e) => setU(e.target.value)} />
+        <input 
+          value={u} 
+          onChange={(e) => setU(e.target.value)} 
+          required
+        />
         <label>Password</label>
-        <input type="password" value={p} onChange={(e) => setP(e.target.value)} />
+        <input
+          type="password"
+          value={p}
+          onChange={(e) => setP(e.target.value)}
+          required
+        />
         <button type="submit">Login</button>
         <p>
-          No account? <button type="button" onClick={switchToRegister}>Register</button>
+          No account?{" "}
+          <button type="button" onClick={switchToRegister}>
+            Register
+          </button>
         </p>
       </form>
     </div>

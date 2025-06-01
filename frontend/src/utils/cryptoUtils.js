@@ -2,7 +2,7 @@
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-// AES-GCM key derivation
+// Derive AES key from password and salt (same as in registration)
 async function deriveKey(password, salt) {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -11,6 +11,7 @@ async function deriveKey(password, salt) {
     false,
     ["deriveKey"]
   );
+  
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
@@ -25,27 +26,75 @@ async function deriveKey(password, salt) {
   );
 }
 
+// Decrypt private key using password
 export async function decryptPrivateKey(encryptedKeyBase64, password, salt, iv) {
+  // Derive the same AES key
   const aesKey = await deriveKey(password, salt);
+  
+  // Convert from base64
   const ivBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
   const encryptedBytes = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
-  const pkcs8 = await crypto.subtle.decrypt(
+  
+  // Decrypt to get PKCS8 format
+  const privateKeyRaw = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: ivBytes },
     aesKey,
     encryptedBytes
   );
-  return crypto.subtle.importKey("pkcs8", pkcs8, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+  console.log(privateKeyRaw);
+  // Import as RSA private key
+  return crypto.subtle.importKey(
+    "pkcs8",
+    privateKeyRaw,
+    {
+      name: "RSA-OAEP",
+      hash: "SHA-256",
+    },
+    false,
+    ["decrypt"]
+  );
 }
 
-export async function encryptMessage(text, publicKeyBase64) {
-  const rawKey = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0));
-  const publicKey = await crypto.subtle.importKey("spki", rawKey, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
-  const encrypted = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, enc.encode(text));
+// Encrypt message with public key
+export async function encryptMessage(plaintext, publicKeyBase64) {
+  // Convert public key from base64
+  const publicKeyRaw = Uint8Array.from(atob(publicKeyBase64), c => c.charCodeAt(0));
+  
+  // Import public key
+  const publicKey = await crypto.subtle.importKey(
+    "spki",
+    publicKeyRaw,
+    {
+      name: "RSA-OAEP",
+      hash: "SHA-256",
+    },
+    false,
+    ["encrypt"]
+  );
+  
+  // Encrypt message
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    publicKey,
+    enc.encode(plaintext)
+  );
+  
+  // Return as base64
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
 }
 
+// Decrypt message with private key
 export async function decryptMessage(encryptedBase64, privateKey) {
-  const encrypted = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
-  const decrypted = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, encrypted);
+  // Convert from base64
+  const encryptedBytes = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "RSA-OAEP" },
+    privateKey,
+    encryptedBytes
+  );
+  
+  // Return as string
   return dec.decode(decrypted);
 }
