@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
-import { fetchMutualFriends } from "../api/friends";
 import { useChatSocket } from "../hooks/useChatSocket";
-import { encryptMessage,decryptMessage } from "../utils/cryptoUtils";
+import { encryptMessage, decryptMessage } from "../utils/cryptoUtils";
+
+// Returns a consistent room name for two users
 function getRoomName(user1, user2) {
   if (!user1 || !user2) return null;
   return [user1, user2].sort().join("");
@@ -14,86 +15,102 @@ export default function ChatWindow({ user, room }) {
   const [partnerPublicKey, setPartnerPublicKey] = useState(null);
   const endRef = useRef();
 
+  // Extract partner from the room
   const partner = room?.name;
   const socketRoomName = getRoomName(user, partner);
 
-  const handleIncoming = useCallback(async (data) => {
-    const { content_for_sender, content_for_receiver, username, iv } = data;
-    try {
-      const myPublicKey = window.userPublicKey
-      let decrypted;
-      
-      if (username === user) {
-        decrypted = await decryptMessage(content_for_sender, iv, myPublicKey);
-      } else {
-        decrypted = await decryptMessage(content_for_receiver, iv, partnerPublicKey);
-      }
-      
-      setMessages(prev => [...prev, { content: decrypted, username }]);
-    } catch (err) {
-      console.error("Decryption failed:", err);
-      setMessages(prev => [...prev, { content: "[Decryption failed]", username }]);
-    }
-  }, [user, partnerPublicKey]);
-
-  const { send } = useChatSocket(socketRoomName, handleIncoming);
-
-  // Load partner's public key
+  // Fetch partner's public key when room changes
   useEffect(() => {
     if (!partner) return;
     
-    fetchMutualFriends()
-      .then(data => {
-        const friend = data.mutual_friends.find(f => f.username === partner);
-        if (friend?.public_key) {
-          setPartnerPublicKey(friend.public_key);
-        }
-      })
-      .catch(console.error);
+    fetch(`http://localhost:8000/user/public-key/${partner}/`, {
+      credentials: "include"
+    })
+      .then(res => res.json())
+      .then(data => setPartnerPublicKey(data.public_key))
+      .catch(err => console.error("Failed to fetch partner's public key:", err));
   }, [partner]);
 
-  // Load messages
+  // Decrypt message helper
+  const decryptMessageContent = async (encryptedContent) => {
+    try {
+      return await decryptMessage(encryptedContent, window.userPrivateKey);
+    } catch (err) {
+      console.error("Failed to decrypt message:", err);
+      return "[Unable to decrypt]";
+    }
+  };
+
+  // Handle incoming WebSocket messages
+  const handleIncoming = useCallback(async ({ content_for_sender, content_for_receiver, username, iv }) => {
+    const isMyMessage = username === user;
+    const encryptedContent = isMyMessage ? content_for_sender : content_for_receiver;
+    
+    const decryptedContent = await decryptMessageContent(encryptedContent);
+    
+    setMessages(prev => [...prev, { 
+      content: decryptedContent,
+      username
+    }]);
+  }, [user]);
+
+  const { send } = useChatSocket(socketRoomName, handleIncoming);
+
+  // Load and decrypt messages when room changes
   useEffect(() => {
-    if (!room || !partnerPublicKey) return;
+    if (!room) return;
     
     fetchMessages(room.id)
       .then(async (data) => {
-        const myPublicKey = localStorage.getItem('publicKey');
         const decryptedMessages = await Promise.all(
           data.map(async (m) => {
-            try {
-              // Backend returns 'content' which is already the correct version
-              const publicKey = m.username === user ? myPublicKey : partnerPublicKey;
-              const decrypted = await decryptMessage(m.content, m.iv, publicKey);
-              return { content: decrypted, username: m.username };
-            } catch (err) {
-              console.error("Decrypt error:", err);
-              return { content: "[Cannot decrypt]", username: m.username };
-            }
+            const isMyMessage = m.username === user;
+            const encryptedContent = isMyMessage ? m.content_for_sender : m.content_for_receiver;
+            
+            return {
+              content: await decryptMessageContent(encryptedContent),
+              username: m.username
+            };
           })
         );
         setMessages(decryptedMessages);
       })
       .catch(console.error);
-  }, [room, user, partnerPublicKey]);
+  }, [room, user]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
-    if (!draft.trim() || !room || !partnerPublicKey) return;
+    if (!draft.trim() || !room || !partnerPublicKey || !window.userPublicKey) return;
+    
     const text = draft;
     setDraft("");
     
     try {
-      const myPublicKey = localStorage.getItem('publicKey');
-      const encrypted = await encryptMessage(text, partnerPublicKey, myPublicKey);
+      // Generate IV for this message
+      const iv = window.crypto.getRandomValues(new Uint8Array(16));
+      const ivBase64 = btoa(String.fromCharCode(...iv));
       
-      await createMessage(room.id, encrypted);
-      send(encrypted, user);
+      // Encrypt message for both users
+      const content_for_receiver = await encryptMessage(text, partnerPublicKey);
+      const content_for_sender = await encryptMessage(text, window.userPublicKey);
+      
+      // Save to backend
+      await createMessage(room.id, content_for_sender, content_for_receiver, ivBase64);
+      
+      // Broadcast via WebSocket
+      send({
+        content_for_sender,
+        content_for_receiver,
+        username: user,
+        iv: ivBase64
+      });
     } catch (err) {
-      console.error("Failed to send:", err);
+      console.error("❌ Failed to send:", err);
+      setDraft(text); // Restore draft on error
     }
   };
 
@@ -108,14 +125,11 @@ export default function ChatWindow({ user, room }) {
     return <div className="chat-window">Select a room to start chatting.</div>;
   }
 
-  if (!partnerPublicKey) {
-    return <div className="chat-window">Loading encryption keys...</div>;
-  }
-
   return (
     <div className="chat-window">
       <div className="chat-header">
-        <h3>🔒 Encrypted chat with: {partner}</h3>
+        <h3>Chat with: {partner}</h3>
+        {!partnerPublicKey && <small style={{color: '#f66'}}>Loading encryption keys...</small>}
       </div>
 
       <div className="chat-messages">
@@ -134,12 +148,15 @@ export default function ChatWindow({ user, room }) {
       <div className="chat-input">
         <input
           type="text"
-          placeholder="Type your encrypted message…"
+          placeholder="Type your message…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
+          disabled={!partnerPublicKey}
         />
-        <button onClick={handleSend}>Send 🔒</button>
+        <button onClick={handleSend} disabled={!partnerPublicKey}>
+          Send
+        </button>
       </div>
     </div>
   );

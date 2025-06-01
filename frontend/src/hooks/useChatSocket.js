@@ -4,6 +4,7 @@ export function useChatSocket(room, onMessage) {
   const socketRef = useRef(null);
   const handlerRef = useRef(onMessage);
 
+  // keep handlerRef up to date, without re-running the main effect
   useEffect(() => {
     handlerRef.current = onMessage;
   }, [onMessage]);
@@ -13,8 +14,8 @@ export function useChatSocket(room, onMessage) {
     console.log("Connecting to room:", room);
 
     const backendHost = "localhost:8000";
-    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    const socketUrl = `${wsScheme}://${backendHost}/ws/chat/${room}/`;
+    const wsScheme    = window.location.protocol === "https:" ? "wss" : "ws";
+    const socketUrl   = `${wsScheme}://${backendHost}/ws/chat/${room}/`;
 
     const ws = new WebSocket(socketUrl);
     socketRef.current = ws;
@@ -22,19 +23,17 @@ export function useChatSocket(room, onMessage) {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        console.log("🔍 WS received:", data);
-        if (data.content_for_sender || data.content_for_receiver) {
-          handlerRef.current(data);
-        }
+        console.log("🔍 WS parsed object:", data);
+        handlerRef.current(data);
       } catch (err) {
         console.error("WS parse error:", err);
       }
     };
-    
     ws.onopen = () => console.log("WebSocket opened:", socketUrl);
     ws.onerror = (err) => console.error("WebSocket error:", err);
     ws.onclose = (e) => console.log("WebSocket closed:", e.code, e.reason);
 
+    // cleanup only when room actually changes or component unmounts
     return () => {
       console.log("Cleaning up WS for room:", room);
       ws.close();
@@ -42,15 +41,10 @@ export function useChatSocket(room, onMessage) {
     };
   }, [room]);
 
-  const send = (encryptedData, username) => {
+  const send = (messageData) => {
     const ws = socketRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        content_for_sender: encryptedData.content_for_sender,
-        content_for_receiver: encryptedData.content_for_receiver,
-        iv: encryptedData.iv,
-        username
-      }));
+      ws.send(JSON.stringify(messageData));
     }
   };
 

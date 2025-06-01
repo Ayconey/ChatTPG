@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import RegisterView, LogoutView, MeView, AddFriendView, MutualFriendsView,FriendRequestListView,SendFriendRequestView, AcceptFriendRequestView, CookieTokenObtainPairView,EncryptedPrivateKeyView
+from .views import (RegisterView, LogoutView, MeView, AddFriendView, MutualFriendsView,FriendRequestListView,SendFriendRequestView,
+                    AcceptFriendRequestView, CookieTokenObtainPairView,EncryptedPrivateKeyView,PublicKeyView)
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -14,5 +15,6 @@ urlpatterns = [
     path('friend-requests/send/', SendFriendRequestView.as_view(), name='send-friend-request'),
     path('friend-requests/<int:pk>/accept/', AcceptFriendRequestView.as_view(), name='accept-friend-request'),
     path('key/', EncryptedPrivateKeyView.as_view(), name='get_user_key'),
+    path('public-key/<str:username>/', PublicKeyView.as_view(), name='public-key'),
 
 ]

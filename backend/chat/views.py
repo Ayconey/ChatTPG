@@ -85,4 +85,5 @@ class MessageListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         room = self.get_room()
+        print('przed serializerem')
         serializer.save(user=self.request.user, room=room)

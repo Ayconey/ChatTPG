@@ -24,13 +24,11 @@ class MessageCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ['content_for_sender', 'content_for_receiver', 'iv']
+        fields = ['content_for_sender', 'content_for_receiver','iv']
 
     def validate(self, data):
         if not data.get('content_for_sender') or not data.get('content_for_receiver'):
             raise serializers.ValidationError("Both encrypted contents are required.")
-        if not data.get('iv'):
-            raise serializers.ValidationError("IV is required for decryption.")
         return data
 
     def create(self, validated_data):

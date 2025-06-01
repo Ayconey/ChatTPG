@@ -20,13 +20,13 @@ export function fetchMessages(roomId) {
   return callChat(`/messages/${roomId}/`, { method: "GET" });
 }
 
-export function createMessage(roomId, encryptedData) {
+export function createMessage(roomId, content_for_sender, content_for_receiver, iv) {
   return callChat(`/messages/${roomId}/`, {
     method: "POST",
-    body: JSON.stringify({
-      content_for_sender: encryptedData.content_for_sender,
-      content_for_receiver: encryptedData.content_for_receiver,
-      iv: encryptedData.iv
+    body: JSON.stringify({ 
+      content_for_sender: content_for_sender, 
+      content_for_receiver: content_for_receiver,
+      iv: iv
     }),
   });
 }

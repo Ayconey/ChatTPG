@@ -222,3 +222,15 @@ class EncryptedPrivateKeyView(APIView):
                 {"detail": "User profile not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+class PublicKeyView(APIView):
+    authentication_classes = [CookieTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            user = User.objects.get(username=username)
+            profile = UserProfile.objects.get(user=user)
+            return Response({"public_key": profile.public_key})
+        except (User.DoesNotExist, UserProfile.DoesNotExist):
+            return Response({"error": "User not found"}, status=404)
