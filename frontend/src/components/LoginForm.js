@@ -24,7 +24,6 @@ export default function LoginForm({ onLogin, switchToRegister }) {
         salt,
         iv
       );
-      console.log(privateKey);
 
 // 3. Test szyfrowania/odszyfrowywania
 async function testCrypto() {
@@ -52,18 +51,7 @@ async function testCrypto() {
       // 5. Store the decrypted key in memory (we'll need a better solution later)
       window.userPublicKey = public_key;
       window.userPrivateKey = privateKey;
-            // 1. Sprawdź czy klucz istnieje
-console.log("Private key exists:", !!window.userPrivateKey);
-console.log("Public key (base64):", window.userPublicKey);
-
-// 2. Sprawdź właściwości klucza
-if (window.userPrivateKey) {
-  console.log("Private key type:", window.userPrivateKey.type); // "private"
-  console.log("Private key algorithm:", window.userPrivateKey.algorithm); // RSA-OAEP
-  console.log("Private key usages:", window.userPrivateKey.usages); // ["decrypt"]
-  console.log("Private key extractable:", window.userPrivateKey.extractable); // false
-}
-testCrypto();
+      //testCrypto();
       onLogin(u.trim());
     } catch (error) {
       console.error("Login error:", error);

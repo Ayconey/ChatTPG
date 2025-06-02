@@ -41,12 +41,21 @@ export default function ChatWindow({ user, room }) {
     }
   };
 
-  // Handle incoming WebSocket messages
   const handleIncoming = useCallback(async ({ content_for_sender, content_for_receiver, username, iv }) => {
+    console.log("🔔 Incoming message from:", username);
+    console.log("📦 Current user:", user);
+    console.log("📦 Is my message:", username === user);
+    console.log("📦 Content for sender length:", content_for_sender?.length);
+    console.log("📦 Content for receiver length:", content_for_receiver?.length);
+    
     const isMyMessage = username === user;
     const encryptedContent = isMyMessage ? content_for_sender : content_for_receiver;
     
+    console.log("🔐 Using encrypted content:", isMyMessage ? "sender" : "receiver");
+    console.log("🔐 Encrypted content preview:", encryptedContent?.substring(0, 50) + "...");
+    
     const decryptedContent = await decryptMessageContent(encryptedContent);
+    console.log("✅ Decrypted content:", decryptedContent);
     
     setMessages(prev => [...prev, { 
       content: decryptedContent,

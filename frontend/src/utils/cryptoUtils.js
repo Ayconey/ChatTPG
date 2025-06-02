@@ -41,7 +41,6 @@ export async function decryptPrivateKey(encryptedKeyBase64, password, salt, iv) 
     aesKey,
     encryptedBytes
   );
-  console.log(privateKeyRaw);
   // Import as RSA private key
   return crypto.subtle.importKey(
     "pkcs8",
