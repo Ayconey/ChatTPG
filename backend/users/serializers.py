@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import UserProfile, FriendRequest
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 class UserSerializer(serializers.ModelSerializer):
     # Crypto fields - write only for registration
@@ -8,11 +10,19 @@ class UserSerializer(serializers.ModelSerializer):
     encrypted_private_key = serializers.CharField(write_only=True)
     salt = serializers.CharField(write_only=True)
     iv = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'public_key', 'encrypted_private_key', 'salt', 'iv']
         extra_kwargs = {'password': {'write_only': True}}
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.messages)
+        return value
 
     def create(self, validated_data):
         # Extract crypto data

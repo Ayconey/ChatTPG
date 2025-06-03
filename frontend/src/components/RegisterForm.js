@@ -1,16 +1,15 @@
-// src/components/RegisterForm.js
 import React, { useState } from "react";
 import { registerUser } from "../api/auth";
 
 export default function RegisterForm({ backToLogin }) {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
-  const [msg, setMsg] = useState("");
+  const [errors, setErrors] = useState([]);
+  const [successMsg, setSuccessMsg] = useState("");
 
   async function generateCryptoMaterial(password) {
     const enc = new TextEncoder();
 
-    // 1. Generate RSA key pair
     const keyPair = await window.crypto.subtle.generateKey(
       {
         name: "RSA-OAEP",
@@ -22,18 +21,13 @@ export default function RegisterForm({ backToLogin }) {
       ["encrypt", "decrypt"]
     );
 
-    // 2. Export public key (SPKI)
     const publicKeyRaw = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
     const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyRaw)));
 
-    // 3. Export private key (PKCS8)
     const privateKeyRaw = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-
-    // 4. Generate salt and IV for AES encryption
     const salt = window.crypto.getRandomValues(new Uint8Array(16));
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
 
-    // 5. Derive AES key from password
     const keyMaterial = await window.crypto.subtle.importKey(
       "raw",
       enc.encode(password),
@@ -55,28 +49,24 @@ export default function RegisterForm({ backToLogin }) {
       ["encrypt"]
     );
 
-    // 6. Encrypt private key with AES
     const encryptedPrivateKeyRaw = await window.crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       aesKey,
       privateKeyRaw
     );
 
-    // Convert to base64
-    const encryptedPrivateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedPrivateKeyRaw)));
-    const saltBase64 = btoa(String.fromCharCode(...salt));
-    const ivBase64 = btoa(String.fromCharCode(...iv));
-
     return {
       public_key: publicKeyBase64,
-      encrypted_private_key: encryptedPrivateKeyBase64,
-      salt: saltBase64,
-      iv: ivBase64,
+      encrypted_private_key: btoa(String.fromCharCode(...new Uint8Array(encryptedPrivateKeyRaw))),
+      salt: btoa(String.fromCharCode(...salt)),
+      iv: btoa(String.fromCharCode(...iv)),
     };
   }
 
   async function submit(e) {
     e.preventDefault();
+    setErrors([]);
+    setSuccessMsg("");
     try {
       const cryptoData = await generateCryptoMaterial(p.trim());
       await registerUser({
@@ -84,10 +74,21 @@ export default function RegisterForm({ backToLogin }) {
         password: p.trim(),
         ...cryptoData,
       });
-      setMsg("Success! Please log in.");
+      setSuccessMsg("Success! Please log in.");
     } catch (err) {
-      console.error(err);
-      setMsg("Registration failed.");
+      console.log("Registration error:", err);
+      if (err.response && err.response.data) {
+        const data = err.response.data;
+        const allErrors = [];
+        for (const field in data) {
+          if (Array.isArray(data[field])) {
+            allErrors.push(...data[field]);
+          }
+        }
+        setErrors(allErrors);
+      } else {
+        setErrors(["Registration failed."]);
+      }
     }
   }
 
@@ -95,16 +96,28 @@ export default function RegisterForm({ backToLogin }) {
     <div className="auth-container">
       <form onSubmit={submit}>
         <h2>Register</h2>
-        {msg && <div className="info">{msg}</div>}
+
+        {successMsg && <div className="info">{successMsg}</div>}
+        {errors.length > 0 && (
+          <ul style={{ color: "red", padding: 0, listStyle: "none" }}>
+            {errors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        )}
+
         <label>Username</label>
         <input value={u} onChange={(e) => setU(e.target.value)} />
+
         <label>Password</label>
-        <input
-          type="password"
-          value={p}
-          onChange={(e) => setP(e.target.value)}
-        />
+        <input type="password" value={p} onChange={(e) => setP(e.target.value)} />
+
+        <small style={{ display: "block", marginBottom: "1em" }}>
+          Password must be at least 8 characters long.
+        </small>
+
         <button type="submit">Register</button>
+
         <p>
           Have account?{" "}
           <button type="button" onClick={backToLogin}>

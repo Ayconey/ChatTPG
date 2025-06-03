@@ -7,8 +7,21 @@ async function callApi(path, options = {}) {
     credentials: "include", // include cookies!
     ...options,
   });
-  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
-  return res.json();
+
+  const contentType = res.headers.get("content-type");
+  const isJson = contentType && contentType.includes("application/json");
+  const data = isJson ? await res.json() : null;
+
+  if (!res.ok) {
+    const error = new Error(`API ${path} failed: ${res.status}`);
+    error.response = {
+      status: res.status,
+      data: data || { detail: "Unknown error" },
+    };
+    throw error;
+  }
+
+  return data;
 }
 
 export function registerUser(userData) {
