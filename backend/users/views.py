@@ -234,3 +234,28 @@ class PublicKeyView(APIView):
             return Response({"public_key": profile.public_key})
         except (User.DoesNotExist, UserProfile.DoesNotExist):
             return Response({"error": "User not found"}, status=404)
+        
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]  # ✅ This makes it public
+    def get(self, request):
+        uid = request.query_params.get('uid')
+        token = request.query_params.get('token')
+        print(f"🔍 Verifying email for UID: {uid}, Token: {token}")
+        try:
+            user = User.objects.get(pk=uid)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            print(f"✅ Email verified for user: {user.username}")
+            return Response({"detail": "Email verified successfully."})
+        else:
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)

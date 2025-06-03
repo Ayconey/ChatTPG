@@ -3,6 +3,7 @@ import { registerUser } from "../api/auth";
 
 export default function RegisterForm({ backToLogin }) {
   const [u, setU] = useState("");
+  const [e, setE] = useState("");
   const [p, setP] = useState("");
   const [errors, setErrors] = useState([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -63,18 +64,20 @@ export default function RegisterForm({ backToLogin }) {
     };
   }
 
-  async function submit(e) {
-    e.preventDefault();
+  async function submit(eEvent) {
+    eEvent.preventDefault();
     setErrors([]);
     setSuccessMsg("");
+
     try {
       const cryptoData = await generateCryptoMaterial(p.trim());
       await registerUser({
         username: u.trim(),
+        email: e.trim(),
         password: p.trim(),
         ...cryptoData,
       });
-      setSuccessMsg("Success! Please log in.");
+      setSuccessMsg("Success! Please check your email to verify your account.");
     } catch (err) {
       console.log("Registration error:", err);
       if (err.response && err.response.data) {
@@ -107,10 +110,18 @@ export default function RegisterForm({ backToLogin }) {
         )}
 
         <label>Username</label>
-        <input value={u} onChange={(e) => setU(e.target.value)} />
+        <input value={u} onChange={(e) => setU(e.target.value)} required />
+
+        <label>Email</label>
+        <input
+          type="email"
+          value={e}
+          onChange={(e) => setE(e.target.value)}
+          required
+        />
 
         <label>Password</label>
-        <input type="password" value={p} onChange={(e) => setP(e.target.value)} />
+        <input type="password" value={p} onChange={(e) => setP(e.target.value)} required />
 
         <small style={{ display: "block", marginBottom: "1em" }}>
           Password must be at least 8 characters long.

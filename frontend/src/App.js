@@ -10,19 +10,19 @@ import {
   logoutUser,
 } from "./api/auth";
 import "./index.css";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import VerifyEmail from "./components/VerifyEmail"
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");
   const [room, setRoom] = useState(null);
 
-  // Clean up crypto data on logout
   const cleanupCrypto = () => {
     sessionStorage.removeItem("cryptoParams");
     delete window.userPrivateKey;
   };
 
-  // Try to restore session on load
   useEffect(() => {
     getCurrentUser()
       .then((data) => setUser(data.username))
@@ -33,7 +33,6 @@ export default function App() {
       });
   }, []);
 
-  // Refresh token every 5 minutes
   useEffect(() => {
     if (!user) return;
     const iv = setInterval(() => {
@@ -46,41 +45,50 @@ export default function App() {
     return () => clearInterval(iv);
   }, [user]);
 
-  if (!user) {
-    return view === "login" ? (
-      <LoginForm
-        onLogin={() =>
-          getCurrentUser()
-            .then((data) => setUser(data.username))
-            .catch(() => {})
-        }
-        switchToRegister={() => setView("register")}
-      />
-    ) : (
-      <RegisterForm backToLogin={() => setView("login")} />
-    );
-  }
-
   return (
-    <div className="app">
-      <header className="app-header">
-        <span>Welcome, {user}!</span>
-        <button
-          onClick={() => {
-            logoutUser().finally(() => {
-              setUser(null);
-              setView("login");
-              cleanupCrypto();
-            });
-          }}
-        >
-          Logout
-        </button>
-      </header>
-      <main className="main">
-        <Sidebar selected={room} onSelect={setRoom} />
-        <ChatWindow user={user} room={room} />
-      </main>
-    </div>
+    <Router>
+      <Routes>
+        <Route
+          path="/verify-email"
+          element={<VerifyEmail onVerified={() => setView("login")} />}
+        />
+        <Route
+          path="/"
+          element={
+            user ? (
+              <div className="app">
+                <header className="app-header">
+                  <span>Welcome, {user}!</span>
+                  <button
+                    onClick={() => {
+                      logoutUser().finally(() => {
+                        setUser(null);
+                        setView("login");
+                        cleanupCrypto();
+                      });
+                    }}
+                  >
+                    Logout
+                  </button>
+                </header>
+                <main className="main">
+                  <Sidebar selected={room} onSelect={setRoom} />
+                  <ChatWindow user={user} room={room} />
+                </main>
+              </div>
+            ) : view === "login" ? (
+              <LoginForm
+                onLogin={() =>
+                  getCurrentUser().then((data) => setUser(data.username))
+                }
+                switchToRegister={() => setView("register")}
+              />
+            ) : (
+              <RegisterForm backToLogin={() => setView("login")} />
+            )
+          }
+        />
+      </Routes>
+    </Router>
   );
 }
