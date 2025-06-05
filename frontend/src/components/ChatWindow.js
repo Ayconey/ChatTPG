@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
 import { useChatSocket } from "../hooks/useChatSocket";
-import { encryptMessage, decryptMessage } from "../utils/cryptoUtils";
+import { encryptMessage, decryptMessage,loadKeys } from "../utils/cryptoUtils";
 
 // Returns a consistent room name for two users
 function getRoomName(user1, user2) {
@@ -65,27 +65,33 @@ export default function ChatWindow({ user, room }) {
 
   const { send } = useChatSocket(socketRoomName, handleIncoming);
 
-  // Load and decrypt messages when room changes
-  useEffect(() => {
-    if (!room) return;
-    
-    fetchMessages(room.id)
-      .then(async (data) => {
-        const decryptedMessages = await Promise.all(
-          data.map(async (m) => {
-            const isMyMessage = m.username === user;
-            const encryptedContent = isMyMessage ? m.content_for_sender : m.content_for_receiver;
-            
-            return {
-              content: await decryptMessageContent(encryptedContent),
-              username: m.username
-            };
-          })
-        );
-        setMessages(decryptedMessages);
-      })
-      .catch(console.error);
-  }, [room, user]);
+useEffect(() => {
+  if (!room) return;
+  
+  const loadAndFetchMessages = async () => {
+    try {
+      await loadKeys(); // Czeka aż loadKeys się wykona
+      
+      const data = await fetchMessages(room.id);
+      const decryptedMessages = await Promise.all(
+        data.map(async (m) => {
+          const isMyMessage = m.username === user;
+          const encryptedContent = isMyMessage ? m.content_for_sender : m.content_for_receiver;
+                       
+          return {
+            content: await decryptMessageContent(encryptedContent),
+            username: m.username
+          };
+        })
+      );
+      setMessages(decryptedMessages);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  
+  loadAndFetchMessages();
+}, [room, user]);
 
   // Auto-scroll to bottom
   useEffect(() => {

@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
 
+export function loadKeys(){
+
+}
 export function useChatSocket(room, onMessage) {
   const socketRef = useRef(null);
   const handlerRef = useRef(onMessage);

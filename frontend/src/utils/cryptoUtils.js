@@ -1,4 +1,6 @@
 // src/utils/cryptoUtils.js
+import { getUserKeys } from "../api/auth";
+
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -96,4 +98,18 @@ export async function decryptMessage(encryptedBase64, privateKey) {
   
   // Return as string
   return dec.decode(decrypted);
+}
+
+export async function loadKeys(){
+  const { encrypted_private_key, salt, iv, public_key } = await getUserKeys();
+  const p = sessionStorage.getItem('p');
+  const privateKey = await decryptPrivateKey(
+    encrypted_private_key,
+    p.trim(),
+    salt,
+    iv
+  );
+
+  window.userPublicKey = public_key;
+  window.userPrivateKey = privateKey;
 }

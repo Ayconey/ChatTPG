@@ -1,7 +1,7 @@
 // src/components/LoginForm.js
 import React, { useState } from "react";
 import { loginUser, getUserKeys } from "../api/auth";
-import { decryptPrivateKey,encryptMessage,decryptMessage } from "../utils/cryptoUtils";
+import { decryptPrivateKey } from "../utils/cryptoUtils";
 
 export default function LoginForm({ onLogin, switchToRegister }) {
   const [u, setU] = useState("");
@@ -13,7 +13,7 @@ export default function LoginForm({ onLogin, switchToRegister }) {
     try {
       // 1. Login user
       await loginUser(u.trim(), p.trim());
-      
+      sessionStorage.setItem('p',p.trim());
       // 2. Get encrypted private key and crypto params
       const { encrypted_private_key, salt, iv, public_key } = await getUserKeys();
       
@@ -25,20 +25,6 @@ export default function LoginForm({ onLogin, switchToRegister }) {
         iv
       );
 
-// 3. Test szyfrowania/odszyfrowywania
-async function testCrypto() {
-  const testMessage = "Test message 123";
-  
-  // Zaszyfruj swoim kluczem publicznym
-  const encrypted = await encryptMessage(testMessage, window.userPublicKey);
-  console.log("Encrypted:", encrypted);
-  
-  // Odszyfruj swoim kluczem prywatnym
-  const decrypted = await decryptMessage(encrypted, window.userPrivateKey);
-  console.log("Decrypted:", decrypted);
-  console.log("Match:", testMessage === decrypted);
-}
-
     // 4. Store keys in sessionStorage (temporary storage during session)
     // Note: In production, consider more secure storage methods
     sessionStorage.setItem("cryptoParams", JSON.stringify({
@@ -48,10 +34,9 @@ async function testCrypto() {
       public_key
     }));
       
-      // 5. Store the decrypted key in memory (we'll need a better solution later)
+      // 5. Store the decrypted key in memory
       window.userPublicKey = public_key;
       window.userPrivateKey = privateKey;
-      //testCrypto();
       onLogin(u.trim());
     } catch (error) {
       console.error("Login error:", error);
