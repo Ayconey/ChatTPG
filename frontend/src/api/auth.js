@@ -47,7 +47,9 @@ export function getCurrentUser() {
 }
 
 export function refreshAccessToken() {
-  return callApi("/refresh/", { method: "POST" });
+  return callApi("/refresh/", { 
+    method: "POST",
+    credentials: "include",});
 }
 
 export function getUserKeys() {

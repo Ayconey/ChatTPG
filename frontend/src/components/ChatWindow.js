@@ -93,7 +93,10 @@ export default function ChatWindow({ user, room }) {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!draft.trim() || !room || !partnerPublicKey || !window.userPublicKey) return;
+    if (!draft.trim() || !room || !partnerPublicKey || !window.userPublicKey) {  
+      alert("Couldn't send message: missing draft, room, or keys.");
+      return;
+    }
     
     const text = draft;
     setDraft("");
