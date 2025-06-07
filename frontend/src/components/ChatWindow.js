@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { fetchMessages, createMessage } from "../api/chat";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { encryptMessage, decryptMessage,loadKeys } from "../utils/cryptoUtils";
+import { BACKEND_ROOT } from "../conf";
 
 // Returns a consistent room name for two users
 function getRoomName(user1, user2) {
@@ -23,7 +24,7 @@ export default function ChatWindow({ user, room }) {
   useEffect(() => {
     if (!partner) return;
     
-    fetch(`http://localhost:8000/user/public-key/${partner}/`, {
+    fetch(`${BACKEND_ROOT}/user/public-key/${partner}/`, {
       credentials: "include"
     })
       .then(res => res.json())

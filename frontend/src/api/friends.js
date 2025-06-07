@@ -1,6 +1,7 @@
 // src/api/friends.js
+import { BACKEND_ROOT } from "../conf";
 
-const API_ROOT = "http://localhost:8000/user/friends";
+const API_ROOT = BACKEND_ROOT + "/user/friends";
 
 async function callFriends(path, opts = {}) {
   const res = await fetch(`${API_ROOT}${path}`, {

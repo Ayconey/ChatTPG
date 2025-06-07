@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { BACKEND_ROOT } from "../conf";
+
 
 export function loadKeys(){
 
@@ -16,7 +18,7 @@ export function useChatSocket(room, onMessage) {
     if (!room) return;
     console.log("Connecting to room:", room);
 
-    const backendHost = "localhost:8000";
+    const backendHost = BACKEND_ROOT;
     const wsScheme    = window.location.protocol === "https:" ? "wss" : "ws";
     const socketUrl   = `${wsScheme}://${backendHost}/ws/chat/${room}/`;
 

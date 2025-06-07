@@ -13,6 +13,7 @@ import "./index.css";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import VerifyEmail from "./components/VerifyEmail"
 
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");

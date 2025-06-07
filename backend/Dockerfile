@@ -1,24 +1,11 @@
-# Pobieramy oficjalny obraz Python
-FROM python:3.9-slim
+# backend/Dockerfile
+FROM python:3.11-slim
 
-# Ustalamy katalog roboczy
 WORKDIR /app
 
-# Kopiujemy wymagane pliki
-COPY requirements.txt /app/
-
-# Instalujemy zależności
-RUN pip install --upgrade pip
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopiujemy resztę aplikacji
-COPY . /backend/
+COPY . .
 
-# Ustawiamy zmienną środowiskową dla Django
-ENV PYTHONUNBUFFERED 1
-
-# Otwieramy port
-EXPOSE 8000
-
-# Komenda uruchamiająca serwer Django
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

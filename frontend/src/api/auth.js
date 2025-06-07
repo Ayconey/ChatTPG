@@ -1,5 +1,6 @@
+import { BACKEND_ROOT } from "../conf";
 // src/api/auth.js
-const API_ROOT = "http://localhost:8000/user";
+const API_ROOT = BACKEND_ROOT + "/user";
 
 async function callApi(path, options = {}) {
   const res = await fetch(`${API_ROOT}${path}`, {

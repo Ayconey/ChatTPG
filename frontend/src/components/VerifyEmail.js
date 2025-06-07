@@ -1,9 +1,10 @@
 // src/components/VerifyEmail.js
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { BACKEND_ROOT } from "../conf";
 import axios from "axios";
 
-const API_ROOT = "http://localhost:8000/user";
+const API_ROOT = BACKEND_ROOT + "/user";
 
 export default function VerifyEmail({ onVerified }) {
   const [searchParams] = useSearchParams();

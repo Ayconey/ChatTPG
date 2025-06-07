@@ -1,6 +1,7 @@
 // src/api/chat.js
+import { BACKEND_ROOT } from "../conf";
 
-const API_ROOT = "http://localhost:8000/chat";
+const API_ROOT = BACKEND_ROOT + "/chat";
 
 async function callChat(path, opts = {}) {
   const res = await fetch(`${API_ROOT}${path}`, {
