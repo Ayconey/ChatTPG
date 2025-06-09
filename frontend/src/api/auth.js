@@ -54,5 +54,6 @@ export function refreshAccessToken() {
 }
 
 export function getUserKeys() {
-  return callApi("/key/");
+  return callApi("/key/", { 
+    credentials: "include",});
 }

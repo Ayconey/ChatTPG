@@ -7,6 +7,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         user = self.scope["user"]
         if not user or user.is_anonymous:
+            print("❌ Unauthorized access attempt to chat room")
             await self.close()
             return
 
